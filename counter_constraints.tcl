@@ -10,7 +10,7 @@ if { $RUN_NAME == "v1" } {
 }
 
 # v2 constraints
-if { $RUN_NAME == "v2_400" } {
+if { $RUN_NAME == "v2_500" } {
 	set clk_pin clk 
 	set rstn_pin reset
 
