@@ -2,10 +2,10 @@
 set LIB_FOLDER /ubc/ece/data/cmc2/kits/GPDK45/gsclib045_all_v4.4/gsclib045/timing
 
 # define source folder with unsynthesized sv code
-set SOURCE_FOLDER /ubc/ece/home/ugrads/v/vzhu03/ELEC402/p2sv
+set SOURCE_FOLDER /ubc/ece/home/ugrads/v/vzhu03/ELEC402/ELEC402-PROJ3
 
 # define which run contraint to use in counter_constraints.tcl
-set RUN_NAME v2_800
+set RUN_NAME v2_500
 
 # tell tool (genus) where to find lib
 set_db lib_search_path [concat [get_db lib_search_path] $SOURCE_FOLDER $LIB_FOLDER ]
@@ -14,7 +14,7 @@ set_db lib_search_path [concat [get_db lib_search_path] $SOURCE_FOLDER $LIB_FOLD
 set_db library "slow_vdd1v0_basicCells.lib"
 
 # set top level module
-set TOP_LEVEL multiplier
+set TOP_LEVEL dnn_accelerator
 
 # read sv file
 read_hdl -sv $SOURCE_FOLDER/${TOP_LEVEL}.sv
@@ -29,7 +29,7 @@ check_design -unresolved
 # create_clock [get_ports {clk}] -name clk -period 1.25 -waveform {0 0.625}
 
 # source the constraint file
-source /ubc/ece/home/ugrads/v/vzhu03/ELEC402/foo/synthesis/counter_constraints.tcl
+source /ubc/ece/home/ugrads/v/vzhu03/ELEC402/ELEC402-PROJ3/counter_constraints.tcl
 
 # synthesis commands 
 synthesize -to_generic -effort high
