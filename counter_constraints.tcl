@@ -14,25 +14,7 @@ if { $RUN_NAME == "v2_400" } {
 	set clk_pin clk 
 	set rstn_pin reset
 
-	set clk_period 2.5
-	set eighths [ expr $clk_period / 8.0 ]
-	set sixteenths [ expr $clk_period / 16.0 ] 
-	
-	set inputs_no_clk_rstn [remove_from_collection [all_inputs] [get_ports "$clk_pin $rstn_pin"]]
-
-	create_clock [get_ports $clk_pin] -name $clk_pin -period $clk_period
-
-	set_driving_cell -lib_cell DFFX1 -input_transition_rise [expr 1 * $eighths] -input_transition_fall [expr 1 * $eighths] $inputs_no_clk_rstn [all_inputs]
-
-	set_load [expr [load_of [get_lib_pins */NAND2X4/A]] * 4] [all_outputs]
-}
-
-# v2 constraints
-if { $RUN_NAME == "v2_800" } {
-	set clk_pin clk 
-	set rstn_pin reset
-
-	set clk_period 1.25
+	set clk_period 2
 	set eighths [ expr $clk_period / 8.0 ]
 	set sixteenths [ expr $clk_period / 16.0 ] 
 	
