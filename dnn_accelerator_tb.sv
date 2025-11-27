@@ -126,29 +126,6 @@ module dnn_accelerator_tb;
     );
     
     // ========================================================================
-    // DUT (Device Under Test) Instantiation
-    // ========================================================================
-    multiplier_module multiplier0_dut (
-        .clk(clk),
-        .rst_n(rst_n),
-        .EN_mult(EN_mac),
-        .mult_input0(mac_vecA_0),
-        .mult_input1(mac_vecB_0),
-        .RDY_mult(RDY_mac),
-        .EN_blockRead(mult0_EN_blockRead),
-        .VALID_memVal(mult0_VALID_memVal),
-        .memVal_data(mult0_memVal_data),
-        // Memory write interface (outputs)
-        .EN_writeMem(mult0_EN_writeMem),
-        .writeMem_addr(mult0_writeMem_addr),
-        .writeMem_val(mult0_writeMem_val),
-        // Memory read interface (outputs + input)
-        .EN_readMem(mult0_EN_readMem),
-        .readMem_addr(mult0_readMem_addr),
-        .readMem_val(mult0_readMem_val)
-    );
-    
-    // ========================================================================
     // Test Variables
     // ========================================================================
     integer i, j, k;
