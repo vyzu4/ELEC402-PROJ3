@@ -335,10 +335,10 @@ module dnn_accelerator (
     multiplier_module mult_inst_0 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac),
+        .EN_mult(EN_mac && RDY_mac),
         .mult_input0(mac_vecA_0),
         .mult_input1(mac_vecB_0),
-        .RDY_mult(RDY_mac),  // Not used
+        .RDY_mult(),  // Not used
         .EN_blockRead(mult0_EN_blockRead),
         .VALID_memVal(mult0_VALID_memVal),
         .memVal_data(mult0_memVal_data),
@@ -353,10 +353,10 @@ module dnn_accelerator (
     multiplier_module mult_inst_1 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac),
+        .EN_mult(EN_mac && RDY_mac),
         .mult_input0(mac_vecA_1),
         .mult_input1(mac_vecB_1),
-        .RDY_mult(RDY_mac),
+        .RDY_mult(),
         .EN_blockRead(mult1_EN_blockRead),
         .VALID_memVal(mult1_VALID_memVal),
         .memVal_data(mult1_memVal_data),
@@ -371,10 +371,10 @@ module dnn_accelerator (
     multiplier_module mult_inst_2 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac),
+        .EN_mult(EN_mac && RDY_mac),
         .mult_input0(mac_vecA_2),
         .mult_input1(mac_vecB_2),
-        .RDY_mult(RDY_mac),
+        .RDY_mult(),
         .EN_blockRead(mult2_EN_blockRead),
         .VALID_memVal(mult2_VALID_memVal),
         .memVal_data(mult2_memVal_data),
@@ -389,10 +389,10 @@ module dnn_accelerator (
     multiplier_module mult_inst_3 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac),
+        .EN_mult(EN_mac && RDY_mac),
         .mult_input0(mac_vecA_3),
         .mult_input1(mac_vecB_3),
-        .RDY_mult(RDY_mac),
+        .RDY_mult(),
         .EN_blockRead(mult3_EN_blockRead),
         .VALID_memVal(mult3_VALID_memVal),
         .memVal_data(mult3_memVal_data),
