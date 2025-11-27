@@ -38,7 +38,15 @@ module dnn_accelerator (
     // Memory read interface  
     input  logic         EN_readMem,          // Enable memory read
     output logic         VALID_memVal,        // Valid flag for output
-    output logic [31:0]  memVal_data          // Memory output data
+    output logic [31:0]  memVal_data,         // Memory output data
+    
+    // Result memory interface (exposed for external memory)
+    output logic [5:0]   result_readMem_addr,
+    output logic         result_EN_readMem_int,
+    input  logic [31:0]  result_readMem_val,
+    output logic [5:0]   result_writeMem_addr,
+    output logic         result_EN_writeMem,
+    output logic [31:0]  result_writeMem_val
 );
 
     // ========================================================================
@@ -73,8 +81,6 @@ module dnn_accelerator (
     logic        mult3_EN_readMem, mult3_EN_blockRead;
     logic        mult3_VALID_memVal;
     logic [31:0] mult3_memVal_data, mult3_readMem_val;
-
-    logic        result_EN_readMem_int;
     
     // Tie off unused read interfaces
     assign mult0_EN_blockRead = 1'b1;
@@ -155,17 +161,6 @@ module dnn_accelerator (
             end
         end
     end
-
-    // // stage 4
-    // logic [31:0] final_sum;
-    
-    // always_ff @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         final_sum <= 32'h0;
-    //     end else begin
-    //         final_sum  <= stage3_result;
-    //     end
-    // end
 
     // ========================================================================
     // Result Memory Control
@@ -255,15 +250,8 @@ module dnn_accelerator (
                      (result_write_count < 7'd64);
     
     // ========================================================================
-    // Result Memory Interface
+    // Result Memory Interface (Exposed to external memory)
     // ========================================================================
-    logic        result_EN_writeMem;
-    logic [5:0]  result_writeMem_addr;
-    logic [31:0] result_writeMem_val;
-    // logic        result_EN_readMem_int;
-    logic [5:0]  result_readMem_addr;
-    logic [31:0] result_readMem_val;
-    
     assign result_EN_writeMem   = stage3_valid && (current_state == WRITING);
     assign result_writeMem_addr = result_write_count[5:0];
     assign result_writeMem_val  = stage3_result;
@@ -285,28 +273,6 @@ module dnn_accelerator (
     end
     
     assign VALID_memVal = VALID_memVal_reg;
-    
-    // ========================================================================
-    // Result Memory Instance
-    // ========================================================================
-    memory_wrapper_2port #(
-        .DEPTH(64),
-        .LOGDEPTH(6),
-        .WIDTH(32),
-        .MEMTYPE(0),
-        .TECHNODE(0),
-        .COL_MUX(1)
-    ) result_memory (
-        .clkA(clk),
-        .aA(result_readMem_addr),
-        .cenA(~result_EN_readMem_int),
-        .q(result_readMem_val),
-        
-        .clkB(clk),
-        .aB(result_writeMem_addr),
-        .cenB(~result_EN_writeMem),
-        .d(result_writeMem_val)
-    );
     
     // ========================================================================
     // Multiplier Module Instances (4x from Project 2)
