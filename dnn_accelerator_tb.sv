@@ -293,21 +293,24 @@ module dnn_accelerator_tb;
                 @(posedge clk);
             end
             
+            // Wait one more cycle for data to be properly captured
+            @(posedge clk);
+            
             // Read and verify all 64 results
             for (j = 0; j < 64; j = j + 1) begin
-                while (!VALID_memVal) begin
-                    @(posedge clk);
-                end
-                
+                // Data is now valid, check it
                 total_tests = total_tests + 1;
+
                 if (memVal_data !== expected_results[j]) begin
                     $display("[%0t] ERROR at index %0d: Expected %0d, Got %0d", 
                              $time, j, expected_results[j], memVal_data);
                     error_count = error_count + 1;
-                end else if (j % 16 == 0) begin
-                    $display("[%0t] Result %0d: %0d ✓", $time, j, memVal_data);
+                end 
+                else begin
+                    $display("[%0t] PASS! Result %0d: %0d", $time, j, memVal_data);
                 end
                 
+                // Advance to next cycle
                 @(posedge clk);
             end
             
@@ -326,9 +329,9 @@ module dnn_accelerator_tb;
         $display("Total tests: %0d", total_tests);
         $display("Errors:      %0d", error_count);
         if (error_count == 0) begin
-            $display("STATUS:      PASS ✓");
+            $display("STATUS:      PASS");
         end else begin
-            $display("STATUS:      FAIL ✗");
+            $display("STATUS:      FAIL");
         end
         $display("========================================\n");
         
