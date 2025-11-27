@@ -144,6 +144,26 @@ module dnn_accelerator (
         end
     end
     
+    // Stage 2.5: Partial sums pipelined
+    logic [31:0] stage25_sum01, stage25_sum23;
+    logic        stage25_valid;
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stage25_sum01 <= 32'h0;
+            stage25_sum23 <= 32'h0;
+            stage25_valid <= 1'b0;
+        end else begin
+            if (stage1_valid) begin
+                stage25_sum01 <= stage2_sum01;
+                stage25_sum23 <= stage2_sum23;
+                stage25_valid <= 1'b1;
+            end else begin
+                stage25_valid <= 1'b0;
+            end
+        end
+    end
+    
     // Stage 3: Final sum
     logic [31:0] stage3_result;
     logic        stage3_valid;
@@ -162,7 +182,7 @@ module dnn_accelerator (
         end
     end
     
-    // Stage 3: Final sum
+    // Stage 4: Final sum pipelined
     logic [31:0] stage4_result;
     logic        stage4_valid;
     
