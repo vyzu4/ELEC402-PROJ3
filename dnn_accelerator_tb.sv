@@ -5,6 +5,8 @@
 // multiplier_module from Project 2.
 //
 // Pipeline: 2 (mult from P2) + 3 (adder tree) = 5 cycles total latency
+//
+// Memory wrapper is instantiated in the testbench and connected to the DUT.
 // ============================================================================
 
 `timescale 1ns/1ps
@@ -33,6 +35,14 @@ module dnn_accelerator_tb;
     logic        EN_readMem;
     logic        VALID_memVal;
     logic [31:0] memVal_data;
+
+    // Result memory interface signals
+    logic [5:0]  result_readMem_addr;
+    logic        result_EN_readMem_int;
+    logic [31:0] result_readMem_val;
+    logic [5:0]  result_writeMem_addr;
+    logic        result_EN_writeMem;
+    logic [31:0] result_writeMem_val;
 
     ///////////////////////////////////////////
 
@@ -83,7 +93,36 @@ module dnn_accelerator_tb;
         .RDY_mac(RDY_mac),
         .EN_readMem(EN_readMem),
         .VALID_memVal(VALID_memVal),
-        .memVal_data(memVal_data)
+        .memVal_data(memVal_data),
+        // Memory interface connections
+        .result_readMem_addr(result_readMem_addr),
+        .result_EN_readMem_int(result_EN_readMem_int),
+        .result_readMem_val(result_readMem_val),
+        .result_writeMem_addr(result_writeMem_addr),
+        .result_EN_writeMem(result_EN_writeMem),
+        .result_writeMem_val(result_writeMem_val)
+    );
+    
+    // ========================================================================
+    // Result Memory Instance (instantiated in testbench)
+    // ========================================================================
+    memory_wrapper_2port #(
+        .DEPTH(64),
+        .LOGDEPTH(6),
+        .WIDTH(32),
+        .MEMTYPE(0),
+        .TECHNODE(0),
+        .COL_MUX(1)
+    ) result_memory (
+        .clkA(clk),
+        .aA(result_readMem_addr),
+        .cenA(~result_EN_readMem_int),
+        .q(result_readMem_val),
+        
+        .clkB(clk),
+        .aB(result_writeMem_addr),
+        .cenB(~result_EN_writeMem),
+        .d(result_writeMem_val)
     );
     
     // ========================================================================
@@ -172,6 +211,7 @@ module dnn_accelerator_tb;
         $display("  DNN Accelerator Testbench");
         $display("  Using 4x multiplier_module from Project 2");
         $display("  Testing 8 iterations of 64 dot products");
+        $display("  Memory wrapper instantiated in testbench");
         $display("========================================\n");
         
         // Apply reset
