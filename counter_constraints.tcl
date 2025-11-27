@@ -25,6 +25,8 @@ if { $RUN_NAME == "v2_500" } {
 	set_driving_cell -lib_cell DFFX1 -input_transition_rise [expr 1 * $eighths] -input_transition_fall [expr 1 * $eighths] $inputs_no_clk_rstn [all_inputs]
 
 	set_load [expr [load_of [get_lib_pins */NAND2X4/A]] * 4] [all_outputs]
+
+	set_false_path -to */SI
 }
 
 # v3 constraints 
