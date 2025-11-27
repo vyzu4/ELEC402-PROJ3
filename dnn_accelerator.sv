@@ -124,41 +124,91 @@ module dnn_accelerator (
         end
     end
     
-    // Stage 2: Partial sums
-    logic [31:0] stage2_sum01, stage2_sum23;
+    // Stage 2: Register products (additional pipeline stage for timing)
+    logic [31:0] stage2_prod0, stage2_prod1, stage2_prod2, stage2_prod3;
     logic        stage2_valid;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage2_sum01 <= 32'h0;
-            stage2_sum23 <= 32'h0;
+            stage2_prod0 <= 32'h0;
+            stage2_prod1 <= 32'h0;
+            stage2_prod2 <= 32'h0;
+            stage2_prod3 <= 32'h0;
             stage2_valid <= 1'b0;
         end else begin
-            if (stage1_valid) begin
-                stage2_sum01 <= stage1_prod0 + stage1_prod1;
-                stage2_sum23 <= stage1_prod2 + stage1_prod3;
-                stage2_valid <= 1'b1;
-            end else begin
-                stage2_valid <= 1'b0;
-            end
+            stage2_prod0 <= stage1_prod0;
+            stage2_prod1 <= stage1_prod1;
+            stage2_prod2 <= stage1_prod2;
+            stage2_prod3 <= stage1_prod3;
+            stage2_valid <= stage1_valid;
         end
     end
     
-    // Stage 3: Final sum
-    logic [31:0] stage3_result;
+    // Stage 3: Partial sums
+    logic [31:0] stage3_sum01, stage3_sum23;
     logic        stage3_valid;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage3_result <= 32'h0;
-            stage3_valid  <= 1'b0;
+            stage3_sum01 <= 32'h0;
+            stage3_sum23 <= 32'h0;
+            stage3_valid <= 1'b0;
         end else begin
             if (stage2_valid) begin
-                stage3_result <= stage2_sum01 + stage2_sum23;
-                stage3_valid  <= 1'b1;
+                stage3_sum01 <= stage2_prod0 + stage2_prod1;
+                stage3_sum23 <= stage2_prod2 + stage2_prod3;
+                stage3_valid <= 1'b1;
             end else begin
-                stage3_valid  <= 1'b0;
+                stage3_valid <= 1'b0;
             end
+        end
+    end
+    
+    // Stage 4: Register partial sums (additional pipeline stage for timing)
+    logic [31:0] stage4_sum01, stage4_sum23;
+    logic        stage4_valid;
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stage4_sum01 <= 32'h0;
+            stage4_sum23 <= 32'h0;
+            stage4_valid <= 1'b0;
+        end else begin
+            stage4_sum01 <= stage3_sum01;
+            stage4_sum23 <= stage3_sum23;
+            stage4_valid <= stage3_valid;
+        end
+    end
+    
+    // Stage 5: Final sum
+    logic [31:0] stage5_result;
+    logic        stage5_valid;
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stage5_result <= 32'h0;
+            stage5_valid  <= 1'b0;
+        end else begin
+            if (stage4_valid) begin
+                stage5_result <= stage4_sum01 + stage4_sum23;
+                stage5_valid  <= 1'b1;
+            end else begin
+                stage5_valid  <= 1'b0;
+            end
+        end
+    end
+    
+    // Stage 6: Register final result (additional pipeline stage for timing)
+    logic [31:0] stage6_result;
+    logic        stage6_valid;
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stage6_result <= 32'h0;
+            stage6_valid  <= 1'b0;
+        end else begin
+            stage6_result <= stage5_result;
+            stage6_valid  <= stage5_valid;
         end
     end
     
@@ -226,7 +276,7 @@ module dnn_accelerator (
         end else begin
             if (current_state == IDLE || current_state == READING) begin
                 result_write_count <= 7'd0;
-            end else if (stage3_valid && result_write_count < 7'd64) begin
+            end else if (stage6_valid && result_write_count < 7'd64) begin
                 result_write_count <= result_write_count + 7'd1;
             end
         end
@@ -252,9 +302,9 @@ module dnn_accelerator (
     // ========================================================================
     // Result Memory Interface (Exposed to external memory)
     // ========================================================================
-    assign result_EN_writeMem   = stage3_valid && (current_state == WRITING);
+    assign result_EN_writeMem   = stage6_valid && (current_state == WRITING);
     assign result_writeMem_addr = result_write_count[5:0];
-    assign result_writeMem_val  = stage3_result;
+    assign result_writeMem_val  = stage6_result;
     
     assign result_EN_readMem_int = (current_state == READING);
     assign result_readMem_addr   = result_read_count;
