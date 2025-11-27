@@ -161,6 +161,24 @@ module dnn_accelerator (
             end
         end
     end
+    
+    // Stage 3: Final sum
+    logic [31:0] stage4_result;
+    logic        stage4_valid;
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stage4_result <= 32'h0;
+            stage4_valid  <= 1'b0;
+        end else begin
+            if (stage3_valid) begin
+                stage4_result <= stage3_result;
+                stage4_valid  <= 1'b1;
+            end else begin
+                stage4_valid  <= 1'b0;
+            end
+        end
+    end
 
     // ========================================================================
     // Result Memory Control
@@ -252,9 +270,9 @@ module dnn_accelerator (
     // ========================================================================
     // Result Memory Interface (Exposed to external memory)
     // ========================================================================
-    assign result_EN_writeMem   = stage3_valid && (current_state == WRITING);
+    assign result_EN_writeMem   = stage4_valid && (current_state == WRITING);
     assign result_writeMem_addr = result_write_count[5:0];
-    assign result_writeMem_val  = stage3_result;
+    assign result_writeMem_val  = stage4_result;
     
     assign result_EN_readMem_int = (current_state == READING);
     assign result_readMem_addr   = result_read_count;
