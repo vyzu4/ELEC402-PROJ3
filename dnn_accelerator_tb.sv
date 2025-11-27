@@ -33,6 +33,29 @@ module dnn_accelerator_tb;
     logic        EN_readMem;
     logic        VALID_memVal;
     logic [31:0] memVal_data;
+
+    ///////////////////////////////////////////
+
+    // Dummy signals for multiplier read interfaces (unused)
+    logic [5:0]  mult0_writeMem_addr, mult0_readMem_addr;
+    logic        mult0_EN_readMem, mult0_EN_blockRead;
+    logic        mult0_VALID_memVal;
+    logic [31:0] mult0_memVal_data, mult0_readMem_val;
+
+    logic [5:0]  mult1_writeMem_addr, mult1_readMem_addr;
+    logic        mult1_EN_readMem, mult1_EN_blockRead;
+    logic        mult1_VALID_memVal;
+    logic [31:0] mult1_memVal_data, mult1_readMem_val;
+
+    logic [5:0]  mult2_writeMem_addr, mult2_readMem_addr;
+    logic        mult2_EN_readMem, mult2_EN_blockRead;
+    logic        mult2_VALID_memVal;
+    logic [31:0] mult2_memVal_data, mult2_readMem_val;
+
+    logic [5:0]  mult3_writeMem_addr, mult3_readMem_addr;
+    logic        mult3_EN_readMem, mult3_EN_blockRead;
+    logic        mult3_VALID_memVal;
+    logic [31:0] mult3_memVal_data, mult3_readMem_val;
     
     // ========================================================================
     // Clock Generation (1GHz = 1ns period for Project 3)
@@ -61,6 +84,29 @@ module dnn_accelerator_tb;
         .EN_readMem(EN_readMem),
         .VALID_memVal(VALID_memVal),
         .memVal_data(memVal_data)
+    );
+    
+    // ========================================================================
+    // DUT (Device Under Test) Instantiation
+    // ========================================================================
+    multiplier_module multiplier0_dut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .EN_mult(EN_mac),
+        .mult_input0(mac_vecA_0),
+        .mult_input1(mac_vecB_0),
+        .RDY_mult(RDY_mac),
+        .EN_blockRead(mult0_EN_blockRead),
+        .VALID_memVal(mult0_VALID_memVal),
+        .memVal_data(mult0_memVal_data),
+        // Memory write interface (outputs)
+        .EN_writeMem(mult0_EN_writeMem),
+        .writeMem_addr(mult0_writeMem_addr),
+        .writeMem_val(mult0_writeMem_val),
+        // Memory read interface (outputs + input)
+        .EN_readMem(mult0_EN_readMem),
+        .readMem_addr(mult0_readMem_addr),
+        .readMem_val(mult0_readMem_val)
     );
     
     // ========================================================================
@@ -93,6 +139,11 @@ module dnn_accelerator_tb;
             result = prod0 + prod1 + prod2 + prod3;
         end
     endtask
+
+    // always begin
+    //     repeat(2000) @(posedge clk);
+    //     rst_n = ~rst_n;
+    // end
     
     // ========================================================================
     // Main Test Sequence
@@ -113,6 +164,8 @@ module dnn_accelerator_tb;
         mac_vecA_3 = 0;
         mac_vecB_3 = 0;
         EN_readMem = 0;
+
+        mult0_EN_readMem = 1;
         
         // Print header
         $display("\n========================================");
@@ -123,7 +176,7 @@ module dnn_accelerator_tb;
         
         // Apply reset
         $display("[%0t] Applying reset...", $time);
-        repeat(10) @(posedge clk);
+        @(posedge clk);
         rst_n = 1;
         repeat(2) @(posedge clk);
         $display("[%0t] Reset released\n", $time);
@@ -132,6 +185,11 @@ module dnn_accelerator_tb;
         // Test 8 iterations
         // ====================================================================
         for (k = 0; k < 8; k = k + 1) begin
+            // // quick reset
+            // rst_n = 0;
+            // @(posedge clk);
+            // rst_n = 1;
+
             $display("========================================");
             $display("  ITERATION %0d", k+1);
             $display("========================================\n");
