@@ -181,7 +181,7 @@ module dnn_accelerator_tb;
         mac_vecB_3 = 0;
         EN_readMem = 0;
 
-        mult0_EN_readMem = 1;
+        // mult0_EN_readMem = 1;
         
         // Print header
         $display("\n========================================");
