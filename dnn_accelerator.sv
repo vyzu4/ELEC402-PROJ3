@@ -205,6 +205,7 @@ module dnn_accelerator (
     // ========================================================================
     logic [6:0]  result_write_count;  // 0-64
     logic [5:0]  result_read_count;   // 0-63
+    logic [5:0]  result_read_count_2;   // 0-63
     
     typedef enum logic [1:0] {
         IDLE    = 2'b00,
@@ -283,6 +284,19 @@ module dnn_accelerator (
         end
     end
     
+    // Read Counter pipelined
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            result_read_count_2 <= 6'd0;
+        end else begin
+            if (current_state == FULL) begin
+                result_read_count_2 <= 6'd0;
+            end else if (current_state == READING && result_EN_readMem_int) begin
+                result_read_count_2 <= result_read_count;
+            end
+        end
+    end
+    
     // Ready signal
     assign RDY_mac = (current_state == IDLE || current_state == WRITING) && 
                      (result_write_count < 7'd64);
@@ -295,7 +309,7 @@ module dnn_accelerator (
     assign result_writeMem_val  = stage4_result;
     
     assign result_EN_readMem_int = (current_state == READING);
-    assign result_readMem_addr   = result_read_count;
+    assign result_readMem_addr   = result_read_count_2;
     
     // Output register
     logic VALID_memVal_reg;
