@@ -82,15 +82,28 @@ module dnn_accelerator (
     logic        mult3_VALID_memVal;
     logic [31:0] mult3_memVal_data, mult3_readMem_val;
     
-    // Tie off unused read interfaces
-    assign mult0_EN_blockRead = 1'b1;
-    assign mult0_readMem_val = 32'h0;
-    assign mult1_EN_blockRead = 1'b1;
-    assign mult1_readMem_val = 32'h0;
-    assign mult2_EN_blockRead = 1'b1;
-    assign mult2_readMem_val = 32'h0;
-    assign mult3_EN_blockRead = 1'b1;
-    assign mult3_readMem_val = 32'h0;
+    // Tie off unused read interfaces - all sequential
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            mult0_EN_blockRead <= 1'b0;
+            mult0_readMem_val <= 32'h0;
+            mult1_EN_blockRead <= 1'b0;
+            mult1_readMem_val <= 32'h0;
+            mult2_EN_blockRead <= 1'b0;
+            mult2_readMem_val <= 32'h0;
+            mult3_EN_blockRead <= 1'b0;
+            mult3_readMem_val <= 32'h0;
+        end else begin
+            mult0_EN_blockRead <= 1'b1;
+            mult0_readMem_val <= 32'h0;
+            mult1_EN_blockRead <= 1'b1;
+            mult1_readMem_val <= 32'h0;
+            mult2_EN_blockRead <= 1'b1;
+            mult2_readMem_val <= 32'h0;
+            mult3_EN_blockRead <= 1'b1;
+            mult3_readMem_val <= 32'h0;
+        end
+    end
     
     // ========================================================================
     // Adder Tree Pipeline
@@ -272,7 +285,7 @@ module dnn_accelerator (
             end
             
             READING: begin
-                if (result_read_count == 6'd63 && result_EN_readMem_int) begin
+                if (result_read_count == 6'd63) begin
                     next_state = IDLE;
                 end
             end
@@ -288,7 +301,7 @@ module dnn_accelerator (
         end else begin
             if (current_state == IDLE || current_state == READING) begin
                 result_write_count <= 7'd0;
-            end else if (stage6_valid && result_write_count < 7'd64) begin
+            end else if (stage6_valid && (current_state == WRITING) && result_write_count < 7'd64) begin
                 result_write_count <= result_write_count + 7'd1;
             end
         end
@@ -301,40 +314,51 @@ module dnn_accelerator (
         end else begin
             if (current_state == FULL) begin
                 result_read_count <= 6'd0;
-            end else if (current_state == READING && result_EN_readMem_int) begin
+            end else if (current_state == READING && result_read_count < 6'd63) begin
                 result_read_count <= result_read_count + 6'd1;
             end
         end
     end
     
-    // Ready signal
-    assign RDY_mac = (current_state == IDLE || current_state == WRITING) && 
-                     (result_write_count < 7'd64);
-    
-    // ========================================================================
-    // Result Memory Interface (Exposed to external memory)
-    // ========================================================================
-    assign result_EN_writeMem   = stage6_valid && (current_state == WRITING);
-    assign result_writeMem_addr = result_write_count[5:0];
-    assign result_writeMem_val  = stage6_result;
-    
-    assign result_EN_readMem_int = (current_state == READING);
-    assign result_readMem_addr   = result_read_count;
-    
-    // Output register
-    logic VALID_memVal_reg;
-    
+    // Ready signal - fully sequential
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            VALID_memVal_reg <= 1'b0;
-            memVal_data      <= 32'h0;
+            RDY_mac <= 1'b0;
         end else begin
-            VALID_memVal_reg <= result_EN_readMem_int;
-            memVal_data      <= result_readMem_val;
+            RDY_mac <= (current_state == IDLE || current_state == WRITING) && 
+                       (result_write_count < 7'd64);
         end
     end
     
-    assign VALID_memVal = VALID_memVal_reg;
+    // ========================================================================
+    // Result Memory Interface (Exposed to external memory) - fully sequential
+    // ========================================================================
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            result_EN_writeMem   <= 1'b0;
+            result_writeMem_addr <= 6'h0;
+            result_writeMem_val  <= 32'h0;
+            result_EN_readMem_int <= 1'b0;
+            result_readMem_addr   <= 6'h0;
+        end else begin
+            result_EN_writeMem   <= stage6_valid && (current_state == WRITING);
+            result_writeMem_addr <= result_write_count[5:0];
+            result_writeMem_val  <= stage6_result;
+            result_EN_readMem_int <= (current_state == READING);
+            result_readMem_addr   <= result_read_count;
+        end
+    end
+    
+    // Output register - fully sequential
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            VALID_memVal <= 1'b0;
+            memVal_data  <= 32'h0;
+        end else begin
+            VALID_memVal <= result_EN_readMem_int;
+            memVal_data  <= result_readMem_val;
+        end
+    end
     
     // ========================================================================
     // Multiplier Module Instances (4x from Project 2)
