@@ -136,11 +136,15 @@ module dnn_accelerator (
             stage2_prod3 <= 32'h0;
             stage2_valid <= 1'b0;
         end else begin
-            stage2_prod0 <= stage1_prod0;
-            stage2_prod1 <= stage1_prod1;
-            stage2_prod2 <= stage1_prod2;
-            stage2_prod3 <= stage1_prod3;
-            stage2_valid <= stage1_valid;
+            if (stage1_valid) begin
+                stage2_prod0 <= stage1_prod0;
+                stage2_prod1 <= stage1_prod1;
+                stage2_prod2 <= stage1_prod2;
+                stage2_prod3 <= stage1_prod3;
+                stage2_valid <= 1'b1;
+            end else begin
+                stage2_valid <= 1'b0;
+            end
         end
     end
     
@@ -174,9 +178,13 @@ module dnn_accelerator (
             stage4_sum23 <= 32'h0;
             stage4_valid <= 1'b0;
         end else begin
-            stage4_sum01 <= stage3_sum01;
-            stage4_sum23 <= stage3_sum23;
-            stage4_valid <= stage3_valid;
+            if (stage3_valid) begin
+                stage4_sum01 <= stage3_sum01;
+                stage4_sum23 <= stage3_sum23;
+                stage4_valid <= 1'b1;
+            end else begin
+                stage4_valid <= 1'b0;
+            end
         end
     end
     
@@ -207,8 +215,12 @@ module dnn_accelerator (
             stage6_result <= 32'h0;
             stage6_valid  <= 1'b0;
         end else begin
-            stage6_result <= stage5_result;
-            stage6_valid  <= stage5_valid;
+            if (stage5_valid) begin
+                stage6_result <= stage5_result;
+                stage6_valid  <= 1'b1;
+            end else begin
+                stage6_valid  <= 1'b0;
+            end
         end
     end
     
