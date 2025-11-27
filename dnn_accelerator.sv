@@ -250,48 +250,41 @@ module dnn_accelerator (
         READING = 2'b11
     } state_t;
     
-    state_t current_state, next_state;
+    state_t current_state;
     
-    // FSM State Register
+    // FSM State Register with Next State Logic - fully sequential
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             current_state <= IDLE;
         end else begin
-            current_state <= next_state;
+            case (current_state)
+                IDLE: begin
+                    if (EN_mac) begin
+                        current_state <= WRITING;
+                    end
+                end
+                
+                WRITING: begin
+                    if (result_write_count == 7'd64) begin
+                        current_state <= FULL;
+                    end
+                end
+                
+                FULL: begin
+                    if (EN_readMem) begin
+                        current_state <= READING;
+                    end
+                end
+                
+                READING: begin
+                    if (result_read_count == 6'd63) begin
+                        current_state <= IDLE;
+                    end
+                end
+                
+                default: current_state <= IDLE;
+            endcase
         end
-    end
-    
-    // FSM Next State Logic
-    always_comb begin
-        next_state = current_state;
-        
-        case (current_state)
-            IDLE: begin
-                if (EN_mac) begin
-                    next_state = WRITING;
-                end
-            end
-            
-            WRITING: begin
-                if (result_write_count == 7'd64) begin
-                    next_state = FULL;
-                end
-            end
-            
-            FULL: begin
-                if (EN_readMem) begin
-                    next_state = READING;
-                end
-            end
-            
-            READING: begin
-                if (result_read_count == 6'd63) begin
-                    next_state = IDLE;
-                end
-            end
-            
-            default: next_state = IDLE;
-        endcase
     end
     
     // Write Counter
