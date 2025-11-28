@@ -222,6 +222,7 @@ module dnn_accelerator_tb;
                 // Wait until accelerator is ready
                 while (!RDY_mac) begin
                     @(posedge clk);
+                    #0.1;
                 end
                 
                 // Generate test vectors
@@ -264,6 +265,7 @@ module dnn_accelerator_tb;
                 end
                 
                 @(posedge clk);
+                #0.1;
                 EN_mac = 0;
             end
             
@@ -274,6 +276,7 @@ module dnn_accelerator_tb;
             
             while (RDY_mac) begin
                 @(posedge clk);
+                #0.1;
             end
             
             $display("[%0t] Memory is now full\n", $time);
@@ -286,15 +289,18 @@ module dnn_accelerator_tb;
             // Start read operation
             EN_readMem = 1;
             @(posedge clk);
+            #0.1;
             EN_readMem = 0;
             
             // Wait for first valid data
             while (!VALID_memVal) begin
                 @(posedge clk);
+                #0.1;
             end
             
             // Wait one more cycle for data to be properly captured
             @(posedge clk);
+            #0.1;
             
             // Read and verify all 64 results
             for (j = 0; j < 64; j = j + 1) begin
@@ -312,11 +318,13 @@ module dnn_accelerator_tb;
                 
                 // Advance to next cycle
                 @(posedge clk);
+                #0.1;
             end
             
             $display("[%0t] All 64 results verified", $time);
             
             repeat(10) @(posedge clk);
+            #0.1;
             $display("");
         end
         
@@ -336,6 +344,7 @@ module dnn_accelerator_tb;
         $display("========================================\n");
         
         repeat(10) @(posedge clk);
+        #0.1;
         $finish;
     end
     
