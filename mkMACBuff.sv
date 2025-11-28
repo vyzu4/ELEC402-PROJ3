@@ -6,6 +6,14 @@
 //
 // Computation: result = (A0*B0) + (A1*B1) + (A2*B2) + (A3*B3)
 //
+// PIPELINE STAGES (Total: 7 cycles):
+//   Stage 0:   Input registration (1 cycle)
+//   Stage 1-2: Multipliers from Project 2 (2 cycles)
+//   Stage 3:   Capture products (1 cycle) 
+//   Stage 4:   Partial sums (1 cycle)
+//   Stage 5:   Register partial sums (1 cycle)
+//   Stage 6:   Final sum (1 cycle)
+//
 // DESIGN APPROACH - MAXIMUM IP REUSE:
 // This design uses 4 complete instances of multiplier_module from Project 2!
 // We tap into the write interface to capture multiplication results without
@@ -17,6 +25,7 @@
 // - Each multiplier is already tested and verified
 // - Shows system-level integration
 // - Demonstrates hierarchical design
+// - Deep pipelining for high-frequency operation (500MHz target)
 // ============================================================================
 
 module mkMACBuff (
@@ -157,6 +166,22 @@ module mkMACBuff (
         end
     end
     
+    // Stage 2.5: Extra pipeline stage for timing (register partial sums)
+    logic [32:0] stage2p5_sum01, stage2p5_sum23;
+    logic        stage2p5_valid;
+    
+    always_ff @(posedge CLK or negedge RST_N) begin
+        if (!RST_N) begin
+            stage2p5_sum01 <= 33'h0;
+            stage2p5_sum23 <= 33'h0;
+            stage2p5_valid <= 1'b0;
+        end else begin
+            stage2p5_sum01 <= stage2_sum01;
+            stage2p5_sum23 <= stage2_sum23;
+            stage2p5_valid <= stage2_valid;
+        end
+    end
+    
     // Stage 3: Final sum (34-bit to handle final overflow)
     logic [33:0] stage3_result;
     logic        stage3_valid;
@@ -166,8 +191,8 @@ module mkMACBuff (
             stage3_result <= 34'h0;
             stage3_valid  <= 1'b0;
         end else begin
-            if (stage2_valid) begin
-                stage3_result <= {1'b0, stage2_sum01} + {1'b0, stage2_sum23};
+            if (stage2p5_valid) begin
+                stage3_result <= {1'b0, stage2p5_sum01} + {1'b0, stage2p5_sum23};
                 stage3_valid  <= 1'b1;
             end else begin
                 stage3_valid  <= 1'b0;
@@ -211,7 +236,7 @@ module mkMACBuff (
             end
             
             WRITING: begin
-                if (result_write_count == 7'd64) begin
+                if (result_write_count == 7'd63) begin
                     next_state = FULL;
                 end
             end
@@ -260,7 +285,7 @@ module mkMACBuff (
     
     // Ready signals
     assign RDY_mac = (current_state == IDLE || current_state == WRITING) && 
-                     (result_write_count < 7'd64);
+                     (result_write_count < 7'd62);
     assign RDY_blockRead = (current_state == FULL);
     
     // ========================================================================
@@ -292,6 +317,43 @@ module mkMACBuff (
     assign memVal_data = memVal_data_reg;
     
     // ========================================================================
+    // Input Pipeline Stage (for timing)
+    // ========================================================================
+    logic [15:0] mac_vectA_0_reg, mac_vectB_0_reg;
+    logic [15:0] mac_vectA_1_reg, mac_vectB_1_reg;
+    logic [15:0] mac_vectA_2_reg, mac_vectB_2_reg;
+    logic [15:0] mac_vectA_3_reg, mac_vectB_3_reg;
+    logic        EN_mac_reg;
+    
+    always_ff @(posedge CLK or negedge RST_N) begin
+        if (!RST_N) begin
+            mac_vectA_0_reg <= 16'h0;
+            mac_vectB_0_reg <= 16'h0;
+            mac_vectA_1_reg <= 16'h0;
+            mac_vectB_1_reg <= 16'h0;
+            mac_vectA_2_reg <= 16'h0;
+            mac_vectB_2_reg <= 16'h0;
+            mac_vectA_3_reg <= 16'h0;
+            mac_vectB_3_reg <= 16'h0;
+            EN_mac_reg <= 1'b0;
+        end else begin
+            if (RDY_mac && EN_mac) begin
+                mac_vectA_0_reg <= mac_vectA_0;
+                mac_vectB_0_reg <= mac_vectB_0;
+                mac_vectA_1_reg <= mac_vectA_1;
+                mac_vectB_1_reg <= mac_vectB_1;
+                mac_vectA_2_reg <= mac_vectA_2;
+                mac_vectB_2_reg <= mac_vectB_2;
+                mac_vectA_3_reg <= mac_vectA_3;
+                mac_vectB_3_reg <= mac_vectB_3;
+                EN_mac_reg <= 1'b1;
+            end else begin
+                EN_mac_reg <= 1'b0;
+            end
+        end
+    end
+    
+    // ========================================================================
     // Multiplier Module Instances (4x from Project 2)
     // ========================================================================
     // Each multiplier performs one element of the dot product
@@ -300,9 +362,9 @@ module mkMACBuff (
     multiplier_module mult_inst_0 (
         .clk(CLK),
         .rst_n(RST_N),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vectA_0),
-        .mult_input1(mac_vectB_0),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_0_reg),
+        .mult_input1(mac_vectB_0_reg),
         .RDY_mult(),  // Not used
         .EN_blockRead(mult0_EN_blockRead),
         .VALID_memVal(mult0_VALID_memVal),
@@ -318,9 +380,9 @@ module mkMACBuff (
     multiplier_module mult_inst_1 (
         .clk(CLK),
         .rst_n(RST_N),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vectA_1),
-        .mult_input1(mac_vectB_1),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_1_reg),
+        .mult_input1(mac_vectB_1_reg),
         .RDY_mult(),
         .EN_blockRead(mult1_EN_blockRead),
         .VALID_memVal(mult1_VALID_memVal),
@@ -336,9 +398,9 @@ module mkMACBuff (
     multiplier_module mult_inst_2 (
         .clk(CLK),
         .rst_n(RST_N),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vectA_2),
-        .mult_input1(mac_vectB_2),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_2_reg),
+        .mult_input1(mac_vectB_2_reg),
         .RDY_mult(),
         .EN_blockRead(mult2_EN_blockRead),
         .VALID_memVal(mult2_VALID_memVal),
@@ -354,9 +416,9 @@ module mkMACBuff (
     multiplier_module mult_inst_3 (
         .clk(CLK),
         .rst_n(RST_N),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vectA_3),
-        .mult_input1(mac_vectB_3),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_3_reg),
+        .mult_input1(mac_vectB_3_reg),
         .RDY_mult(),
         .EN_blockRead(mult3_EN_blockRead),
         .VALID_memVal(mult3_VALID_memVal),
