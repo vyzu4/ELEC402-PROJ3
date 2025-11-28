@@ -4,7 +4,7 @@
 // This testbench verifies the DNN accelerator which uses 4 instances of
 // multiplier_module from Project 2.
 //
-// Pipeline: 2 (mult from P2) + 3 (adder tree) = 5 cycles total latency
+// Pipeline: 1 (input reg) + 2 (mult from P2) + 4 (adder tree) = 7 cycles total latency
 // ============================================================================
 
 `timescale 1ns / 1ps
@@ -205,7 +205,7 @@ begin
         // ====================================================================
         $display("[%0t] Phase 1: Starting 64 dot products...", $time);
         $display("        Using 4x Project 2 multiplier_module");
-        $display("        Pipeline: 2 (mult) + 3 (adder) = 5 cycles\n");
+        $display("        Pipeline: 1 (input) + 2 (mult) + 4 (adder) = 7 cycles\n");
         
         for (i = 0; i < 64; i = i + 1) begin
             // Wait until accelerator is ready
@@ -254,8 +254,10 @@ begin
             
             @(posedge CLK);
             #0.1;  // Small delay after clock edge
-            EN_mac = 1'b0;
+            // EN_mac = 1'b0;
         end
+
+        EN_mac = 1'b0;
         
         $display("[%0t] All 64 dot products submitted", $time);
         
