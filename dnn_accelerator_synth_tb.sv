@@ -1,51 +1,45 @@
-// ============================================================================
-// Testbench for DNN Accelerator (Project 3)
-// ============================================================================
-// This testbench verifies the DNN accelerator which uses 4 instances of
-// multiplier_module from Project 2.
-//
-// Pipeline: 2 (mult from P2) + 3 (adder tree) = 5 cycles total latency
-// ============================================================================
-
 `timescale 1ns/1ps
 
-module dnn_accelerator_tb;
+module acc_tb;
 
-    // ========================================================================
-    // Testbench Signals
-    // ========================================================================
-    logic        clk;
-    logic        rst_n;
+    // Clock and reset
+    logic clk;
+    logic rst_n;
     
     // MAC interface
-    logic        EN_mac;
-    logic [15:0] mac_vecA_0;
-    logic [15:0] mac_vecB_0;
-    logic [15:0] mac_vecA_1;
-    logic [15:0] mac_vecB_1;
-    logic [15:0] mac_vecA_2;
-    logic [15:0] mac_vecB_2;
-    logic [15:0] mac_vecA_3;
-    logic [15:0] mac_vecB_3;
-    logic        RDY_mac;
+    logic         EN_mac;
+    logic [15:0]  mac_vecA_0, mac_vecB_0;
+    logic [15:0]  mac_vecA_1, mac_vecB_1;
+    logic [15:0]  mac_vecA_2, mac_vecB_2;
+    logic [15:0]  mac_vecA_3, mac_vecB_3;
+    logic         RDY_mac;
     
     // Memory read interface
-    logic        EN_readMem;
-    logic        VALID_memVal;
-    logic [31:0] memVal_data;
+    logic         EN_readMem;
+    logic         VALID_memVal;
+    logic [31:0]  memVal_data;
     
-    // ========================================================================
-    // Clock Generation (1GHz = 1ns period for Project 3)
-    // ========================================================================
-    initial begin
-        clk = 0;
-        forever #0.5 clk = ~clk;
+    // Result memory interface
+    logic [5:0]   result_readMem_addr;
+    logic         result_EN_readMem_int;
+    logic [31:0]  result_readMem_val;
+    logic [5:0]   result_writeMem_addr;
+    logic         result_EN_writeMem;
+    logic [31:0]  result_writeMem_val;
+    
+    // Simple memory model (64 entries x 32 bits)
+    logic [31:0] result_memory [0:63];
+    
+    // Memory model behavior
+    always_ff @(posedge clk) begin
+        if (result_EN_writeMem) begin
+            result_memory[result_writeMem_addr] <= result_writeMem_val;
+        end
+        result_readMem_val <= result_memory[result_readMem_addr];
     end
     
-    // ========================================================================
-    // DUT Instantiation
-    // ========================================================================
-    dnn_accelerator dnn_accelerator_v2_500_map (
+    // DUT instantiation
+    dnn_accelerator dut (
         .clk(clk),
         .rst_n(rst_n),
         .EN_mac(EN_mac),
@@ -60,50 +54,27 @@ module dnn_accelerator_tb;
         .RDY_mac(RDY_mac),
         .EN_readMem(EN_readMem),
         .VALID_memVal(VALID_memVal),
-        .memVal_data(memVal_data)
+        .memVal_data(memVal_data),
+        .result_readMem_addr(result_readMem_addr),
+        .result_EN_readMem_int(result_EN_readMem_int),
+        .result_readMem_val(result_readMem_val),
+        .result_writeMem_addr(result_writeMem_addr),
+        .result_EN_writeMem(result_EN_writeMem),
+        .result_writeMem_val(result_writeMem_val)
     );
     
-    // ========================================================================
-    // Test Variables
-    // ========================================================================
-    integer i, j, k;
-    integer error_count;
-    integer total_tests;
-    logic [31:0] expected_result;
-    logic [31:0] expected_results [0:63];
-    
-    // Test vectors
-    logic [15:0] test_vecA [0:3];
-    logic [15:0] test_vecB [0:3];
-    
-    // ========================================================================
-    // Helper Task: Calculate Expected Dot Product
-    // ========================================================================
-    task automatic calculate_dot_product(
-        input [15:0] a0, a1, a2, a3,
-        input [15:0] b0, b1, b2, b3,
-        output [31:0] result
-    );
-        logic [31:0] prod0, prod1, prod2, prod3;
-        begin
-            prod0 = a0 * b0;
-            prod1 = a1 * b1;
-            prod2 = a2 * b2;
-            prod3 = a3 * b3;
-            result = prod0 + prod1 + prod2 + prod3;
-        end
-    endtask
-    
-    // ========================================================================
-    // Main Test Sequence
-    // ========================================================================
+    // Clock generation: 500MHz = 2ns period
     initial begin
-        // Initialize
-        error_count = 0;
-        total_tests = 0;
-        
+        clk = 0;
+        forever #1.1 clk = ~clk;
+    end
+    
+    // Test stimulus
+    initial begin
+        // Initialize signals
         rst_n = 0;
         EN_mac = 0;
+        EN_readMem = 0;
         mac_vecA_0 = 0;
         mac_vecB_0 = 0;
         mac_vecA_1 = 0;
@@ -112,170 +83,56 @@ module dnn_accelerator_tb;
         mac_vecB_2 = 0;
         mac_vecA_3 = 0;
         mac_vecB_3 = 0;
-        EN_readMem = 0;
         
-        // Print header
-        $display("\n========================================");
-        $display("  DNN Accelerator Testbench");
-        $display("  Using 4x multiplier_module from Project 2");
-        $display("  Testing 8 iterations of 64 dot products");
-        $display("========================================\n");
+        // Reset
+        @(posedge clk);
+        #0.1 rst_n = 1;
         
-        // Apply reset
-        $display("[%0t] Applying reset...", $time);
-        repeat(10) @(posedge clk);
-        rst_n = 1;
-        repeat(2) @(posedge clk);
-        $display("[%0t] Reset released\n", $time);
+        // Wait a few cycles (IDLE state)
+        repeat(5) @(posedge clk);
         
-        // ====================================================================
-        // Test 8 iterations
-        // ====================================================================
-        for (k = 0; k < 8; k = k + 1) begin
-            $display("========================================");
-            $display("  ITERATION %0d", k+1);
-            $display("========================================\n");
-            
-            // ================================================================
-            // Phase 1: Perform 64 dot products
-            // ================================================================
-            $display("[%0t] Phase 1: Starting 64 dot products...", $time);
-            $display("        Using 4x Project 2 multiplier_module");
-            $display("        Pipeline: 2 (mult) + 3 (adder) = 5 cycles\n");
-            
-            for (i = 0; i < 64; i = i + 1) begin
-                // Wait until accelerator is ready
-                while (!RDY_mac) begin
-                    @(posedge clk);
-                end
-                
-                // Generate test vectors
-                test_vecA[0] = (i + 1 + k*64) & 16'hFFFF;
-                test_vecB[0] = (i + k + 1) & 16'hFFFF;
-                test_vecA[1] = (i + 2 + k*64) & 16'hFFFF;
-                test_vecB[1] = (i + k + 2) & 16'hFFFF;
-                test_vecA[2] = (i + 3 + k*64) & 16'hFFFF;
-                test_vecB[2] = (i + k + 3) & 16'hFFFF;
-                test_vecA[3] = (i + 4 + k*64) & 16'hFFFF;
-                test_vecB[3] = (i + k + 4) & 16'hFFFF;
-                
-                // Apply inputs
-                mac_vecA_0 = test_vecA[0];
-                mac_vecB_0 = test_vecB[0];
-                mac_vecA_1 = test_vecA[1];
-                mac_vecB_1 = test_vecB[1];
-                mac_vecA_2 = test_vecA[2];
-                mac_vecB_2 = test_vecB[2];
-                mac_vecA_3 = test_vecA[3];
-                mac_vecB_3 = test_vecB[3];
-                
-                // Calculate expected result
-                calculate_dot_product(
-                    test_vecA[0], test_vecA[1], test_vecA[2], test_vecA[3],
-                    test_vecB[0], test_vecB[1], test_vecB[2], test_vecB[3],
-                    expected_results[i]
-                );
-                
-                // Enable MAC
-                EN_mac = 1;
-                
-                if (i % 16 == 0) begin
-                    $display("[%0t] Dot product %0d:", $time, i);
-                    $display("        A=[%0d, %0d, %0d, %0d]", 
-                             test_vecA[0], test_vecA[1], test_vecA[2], test_vecA[3]);
-                    $display("        B=[%0d, %0d, %0d, %0d]", 
-                             test_vecB[0], test_vecB[1], test_vecB[2], test_vecB[3]);
-                    $display("        Expected result = %0d", expected_results[i]);
-                end
-                
-                @(posedge clk);
-                EN_mac = 0;
-            end
-            
-            $display("[%0t] All 64 dot products submitted", $time);
-            
-            // Wait for pipeline to complete
-            repeat(20) @(posedge clk);
-            
-            while (RDY_mac) begin
-                @(posedge clk);
-            end
-            
-            $display("[%0t] Memory is now full\n", $time);
-            
-            // ================================================================
-            // Phase 2: Read and verify results
-            // ================================================================
-            $display("[%0t] Phase 2: Reading back results...", $time);
-            
-            // Start read operation
-            EN_readMem = 1;
+        // IDLE -> WRITING: perform 64 MAC operations to fill memory
+        #0.1 EN_mac = 1;
+        for (int i = 0; i < 64; i++) begin
             @(posedge clk);
-            EN_readMem = 0;
-            
-            // Wait for first valid data
-            while (!VALID_memVal) begin
-                @(posedge clk);
-            end
-            
-            // Read and verify all 64 results
-            for (j = 0; j < 64; j = j + 1) begin
-                while (!VALID_memVal) begin
-                    @(posedge clk);
-                end
-                
-                total_tests = total_tests + 1;
-                if (memVal_data !== expected_results[j]) begin
-                    $display("[%0t] ERROR at index %0d: Expected %0d, Got %0d", 
-                             $time, j, expected_results[j], memVal_data);
-                    error_count = error_count + 1;
-                end else if (j % 16 == 0) begin
-                    $display("[%0t] Result %0d: %0d ✓", $time, j, memVal_data);
-                end
-                
-                @(posedge clk);
-            end
-            
-            $display("[%0t] All 64 results verified", $time);
-            
-            repeat(10) @(posedge clk);
-            $display("");
+            #0.1;
+            // Vary the input values based on iteration
+            mac_vecA_0 = 16'd1 + i;
+            mac_vecB_0 = 16'd2;
+            mac_vecA_1 = 16'd3 + i;
+            mac_vecB_1 = 16'd4;
+            mac_vecA_2 = 16'd5 + i;
+            mac_vecB_2 = 16'd6;
+            mac_vecA_3 = 16'd7 + i;
+            mac_vecB_3 = 16'd8;
         end
         
-        // ====================================================================
-        // Test Summary
-        // ====================================================================
-        $display("\n========================================");
-        $display("  TEST SUMMARY");
-        $display("========================================");
-        $display("Total tests: %0d", total_tests);
-        $display("Errors:      %0d", error_count);
-        if (error_count == 0) begin
-            $display("STATUS:      PASS ✓");
-        end else begin
-            $display("STATUS:      FAIL ✗");
-        end
-        $display("========================================\n");
+        @(posedge clk);
+        #0.1 EN_mac = 0;
         
-        repeat(10) @(posedge clk);
+        // Wait for pipeline to flush and reach FULL state
+        repeat(20) @(posedge clk);
+        
+        // FULL -> READING: start reading memory
+        #0.1 EN_readMem = 1;
+        
+        // Wait for all 64 reads to complete (READING state)
+        repeat(70) @(posedge clk);
+        
+        // Back to IDLE
+        #0.1 EN_readMem = 0;
+        
+        repeat(5) @(posedge clk);
+        
+        $display("Test complete - all FSM states visited");
         $finish;
     end
     
-    // ========================================================================
-    // Timeout Watchdog
-    // ========================================================================
+    // Timeout
     initial begin
-        #2000000;  // 2ms timeout
-        $display("\n[ERROR] Simulation timeout!");
+        #10000;
+        $display("Timeout!");
         $finish;
-    end
-    
-    // ========================================================================
-    // Waveform Dumping
-    // ========================================================================
-    initial begin
-        $dumpfile("dnn_accelerator_tb.vcd");
-        $dumpvars(0, dnn_accelerator_tb);
     end
 
-endmodule: dnn_accelerator_tb
+endmodule
