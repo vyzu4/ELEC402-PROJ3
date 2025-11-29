@@ -13,7 +13,7 @@
 `define HALF_CLK_DELAY_MINUS_EDGE_GAP #0.9;
 `define EDGE_GAP #0.1;
 
-module mkMACBuff_TB;
+module dnn_accelerator_tb;
 
 // ============================================================================
 // Parameters
@@ -70,7 +70,7 @@ wire [N:0] memVal_data;
 // ============================================================================
 // DUT Instantiation
 // ============================================================================
-mkMACBuff mkMACBuff_dut(
+dnn_accelerator dnn_accelerator_dut(
     .CLK(CLK), 
     .RST_N(RST_N),
     
@@ -372,8 +372,8 @@ end
 // Waveform Dumping
 // ============================================================================
 initial begin
-    $dumpfile("mkMACBuff_TB.vcd");
-    $dumpvars(0, mkMACBuff_TB);
+    $dumpfile("dnn_accelerator_tb.vcd");
+    $dumpvars(0, dnn_accelerator_tb);
 end
 
-endmodule: mkMACBuff_TB
+endmodule: dnn_accelerator_tb
