@@ -285,7 +285,7 @@ module mkMACBuff (
     
     // Ready signals
     assign RDY_mac = (current_state == IDLE || current_state == WRITING) && 
-                     (result_write_count < 7'd62);
+                     (result_write_count < 7'd53);
     assign RDY_blockRead = (current_state == FULL);
     
     // ========================================================================
@@ -301,6 +301,7 @@ module mkMACBuff (
     
     // Output registers
     logic VALID_memVal_reg;
+    logic VALID_memVal_reg2;
     logic [33:0] memVal_data_reg;
     
     always_ff @(posedge CLK or negedge RST_N) begin
@@ -309,11 +310,12 @@ module mkMACBuff (
             memVal_data_reg  <= 34'h0;
         end else begin
             VALID_memVal_reg <= result_EN_readMem_int;
+            VALID_memVal_reg2 <= VALID_memVal_reg;
             memVal_data_reg  <= readMem_val;
         end
     end
     
-    assign VALID_memVal = VALID_memVal_reg;
+    assign VALID_memVal = VALID_memVal_reg2;
     assign memVal_data = memVal_data_reg;
     
     // ========================================================================
@@ -337,7 +339,8 @@ module mkMACBuff (
             mac_vectB_3_reg <= 16'h0;
             EN_mac_reg <= 1'b0;
         end else begin
-            if (RDY_mac && EN_mac) begin
+            // if (RDY_mac && EN_mac) begin
+            if (EN_mac) begin
                 mac_vectA_0_reg <= mac_vectA_0;
                 mac_vectB_0_reg <= mac_vectB_0;
                 mac_vectA_1_reg <= mac_vectA_1;
