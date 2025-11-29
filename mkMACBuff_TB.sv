@@ -163,10 +163,15 @@ function automatic [33:0] calculate_dot_product(
 begin
     prod0 = a0 * b0;
     prod1 = a1 * b1;
-    prod2 = a2 * a2;
+    prod2 = a2 * b2;
     prod3 = a3 * b3;
     result = prod0 + prod1 + prod2 + prod3;
     calculate_dot_product = result;
+    $display("prod0: %0d", prod0);
+    $display("prod1: %0d", prod1);
+    $display("prod2: %0d", prod2);
+    $display("prod3: %0d", prod3);
+    $display("result: %0d", result);
 end
 endfunction
 
