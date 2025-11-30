@@ -1,10 +1,20 @@
 // ============================================================================
-// Project 3: Dot-Product-Based DNN Accelerator
+// Project 3: Dot-Product-Based DNN Accelerator (dnn_accelerator)
 // ============================================================================
 // This module performs 4-element dot products with 16-bit fixed-point values
 // and stores results in a 64-entry memory buffer.
 //
 // Computation: result = (A0*B0) + (A1*B1) + (A2*B2) + (A3*B3)
+//
+// PIPELINE STAGES (Total: 9 cycles - ENHANCED PIPELINING):
+//   Stage 0:   Input registration (1 cycle)
+//   Stage 1-2: Multipliers from Project 2 (2 cycles)
+//   Stage 3:   Capture products (1 cycle) 
+//   Stage 4:   Pipeline products before addition (1 cycle) - NEW
+//   Stage 5:   First level partial sums (1 cycle)
+//   Stage 6:   Pipeline partial sums (1 cycle)
+//   Stage 7:   Second level partial sums (1 cycle) - NEW
+//   Stage 8:   Final sum (1 cycle)
 //
 // DESIGN APPROACH - MAXIMUM IP REUSE:
 // This design uses 4 complete instances of multiplier_module from Project 2!
@@ -17,37 +27,50 @@
 // - Each multiplier is already tested and verified
 // - Shows system-level integration
 // - Demonstrates hierarchical design
+// - Deep pipelining for high-frequency operation (500MHz target)
+// - Enhanced pipeline stages for better timing closure
 // ============================================================================
 
 module dnn_accelerator (
-    input  logic         clk,
-    input  logic         rst_n,
+    input  clk, 
+    input  rst_n,
     
     // MAC (Multiply-Accumulate) interface
-    input  logic         EN_mac,              // Enable MAC operation
-    input  logic [15:0]  mac_vecA_0,          // Vector A, element 0
-    input  logic [15:0]  mac_vecB_0,          // Vector B, element 0
-    input  logic [15:0]  mac_vecA_1,          // Vector A, element 1
-    input  logic [15:0]  mac_vecB_1,          // Vector B, element 1
-    input  logic [15:0]  mac_vecA_2,          // Vector A, element 2
-    input  logic [15:0]  mac_vecB_2,          // Vector B, element 2
-    input  logic [15:0]  mac_vecA_3,          // Vector A, element 3
-    input  logic [15:0]  mac_vecB_3,          // Vector B, element 3
-    output logic         RDY_mac,             // Ready to accept new operation
+    input  EN_mac,                // Enable MAC operation
+    output RDY_mac,               // Ready to accept new operation
+    input  [15:0] mac_vectA_0,    // Vector A, element 0
+    input  [15:0] mac_vectB_0,    // Vector B, element 0
+    input  [15:0] mac_vectA_1,    // Vector A, element 1
+    input  [15:0] mac_vectB_1,    // Vector B, element 1
+    input  [15:0] mac_vectA_2,    // Vector A, element 2
+    input  [15:0] mac_vectB_2,    // Vector B, element 2
+    input  [15:0] mac_vectA_3,    // Vector A, element 3
+    input  [15:0] mac_vectB_3,    // Vector B, element 3
     
-    // Memory read interface  
-    input  logic         EN_readMem,          // Enable memory read
-    output logic         VALID_memVal,        // Valid flag for output
-    output logic [31:0]  memVal_data,         // Memory output data
+    // Memory write interface (internal to memory)
+    output EN_writeMem,           // Enable memory write
+    output [5:0] writeMem_addr,   // Write address
+    output [33:0] writeMem_val,   // Write data (34-bit for dot product result)
     
-    // Result memory interface (exposed for external memory)
-    output logic [5:0]   result_readMem_addr,
-    output logic         result_EN_readMem_int,
-    input  logic [31:0]  result_readMem_val,
-    output logic [5:0]   result_writeMem_addr,
-    output logic         result_EN_writeMem,
-    output logic [31:0]  result_writeMem_val
+    // Block read control
+    input  EN_blockRead,          // Enable block read
+    output RDY_blockRead,         // Ready for block read
+    
+    // Memory read interface (internal to memory)
+    output EN_readMem,            // Enable memory read
+    output [5:0] readMem_addr,    // Read address
+    input  [33:0] readMem_val,    // Read data from memory
+    
+    // Memory value output interface
+    output VALID_memVal,          // Valid flag for output
+    output [33:0] memVal_data     // Memory output data
 );
+
+    // N is determined by the required precision for dot product:
+    // 16-bit x 16-bit = 32-bit products
+    // Sum of 4 products needs 2 extra bits: 32 + 2 = 34 bits
+    // So N = 33 (for [33:0] which is 34 bits)
+    localparam N = 33;
 
     // ========================================================================
     // Multiplier Module Write Interfaces (we tap these for results)
@@ -81,33 +104,23 @@ module dnn_accelerator (
     logic        mult3_EN_readMem, mult3_EN_blockRead;
     logic        mult3_VALID_memVal;
     logic [31:0] mult3_memVal_data, mult3_readMem_val;
+
+    logic        result_EN_readMem_int;
     
-    // Tie off unused read interfaces - all sequential
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            mult0_EN_blockRead <= 1'b0;
-            mult0_readMem_val <= 32'h0;
-            mult1_EN_blockRead <= 1'b0;
-            mult1_readMem_val <= 32'h0;
-            mult2_EN_blockRead <= 1'b0;
-            mult2_readMem_val <= 32'h0;
-            mult3_EN_blockRead <= 1'b0;
-            mult3_readMem_val <= 32'h0;
-        end else begin
-            mult0_EN_blockRead <= 1'b1;
-            mult0_readMem_val <= 32'h0;
-            mult1_EN_blockRead <= 1'b1;
-            mult1_readMem_val <= 32'h0;
-            mult2_EN_blockRead <= 1'b1;
-            mult2_readMem_val <= 32'h0;
-            mult3_EN_blockRead <= 1'b1;
-            mult3_readMem_val <= 32'h0;
-        end
-    end
+    // Tie off unused read interfaces
+    assign mult0_EN_blockRead = 1'b1;
+    assign mult0_readMem_val = 32'h0;
+    assign mult1_EN_blockRead = 1'b1;
+    assign mult1_readMem_val = 32'h0;
+    assign mult2_EN_blockRead = 1'b1;
+    assign mult2_readMem_val = 32'h0;
+    assign mult3_EN_blockRead = 1'b1;
+    assign mult3_readMem_val = 32'h0;
     
     // ========================================================================
-    // Adder Tree Pipeline
+    // ENHANCED Adder Tree Pipeline with Additional Stages
     // ========================================================================
+    
     // Stage 1: Capture products when ANY multiplier signals write
     // All multipliers are triggered together, so they complete together
     // Use mult0_EN_writeMem as the trigger (they all finish simultaneously)
@@ -137,7 +150,7 @@ module dnn_accelerator (
         end
     end
     
-    // Stage 2: Register products (additional pipeline stage for timing)
+    // Stage 2: Pipeline products before first addition (NEW - improves timing)
     logic [31:0] stage2_prod0, stage2_prod1, stage2_prod2, stage2_prod3;
     logic        stage2_valid;
     
@@ -149,31 +162,27 @@ module dnn_accelerator (
             stage2_prod3 <= 32'h0;
             stage2_valid <= 1'b0;
         end else begin
-            if (stage1_valid) begin
-                stage2_prod0 <= stage1_prod0;
-                stage2_prod1 <= stage1_prod1;
-                stage2_prod2 <= stage1_prod2;
-                stage2_prod3 <= stage1_prod3;
-                stage2_valid <= 1'b1;
-            end else begin
-                stage2_valid <= 1'b0;
-            end
+            stage2_prod0 <= stage1_prod0;
+            stage2_prod1 <= stage1_prod1;
+            stage2_prod2 <= stage1_prod2;
+            stage2_prod3 <= stage1_prod3;
+            stage2_valid <= stage1_valid;
         end
     end
     
-    // Stage 3: Partial sums
-    logic [31:0] stage3_sum01, stage3_sum23;
+    // Stage 3: First level partial sums (33-bit to handle overflow)
+    logic [32:0] stage3_sum01, stage3_sum23;
     logic        stage3_valid;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage3_sum01 <= 32'h0;
-            stage3_sum23 <= 32'h0;
+            stage3_sum01 <= 33'h0;
+            stage3_sum23 <= 33'h0;
             stage3_valid <= 1'b0;
         end else begin
             if (stage2_valid) begin
-                stage3_sum01 <= stage2_prod0 + stage2_prod1;
-                stage3_sum23 <= stage2_prod2 + stage2_prod3;
+                stage3_sum01 <= {1'b0, stage2_prod0} + {1'b0, stage2_prod1};
+                stage3_sum23 <= {1'b0, stage2_prod2} + {1'b0, stage2_prod3};
                 stage3_valid <= 1'b1;
             end else begin
                 stage3_valid <= 1'b0;
@@ -181,37 +190,33 @@ module dnn_accelerator (
         end
     end
     
-    // Stage 4: Register partial sums (additional pipeline stage for timing)
-    logic [31:0] stage4_sum01, stage4_sum23;
+    // Stage 4: Pipeline partial sums (improves timing)
+    logic [32:0] stage4_sum01, stage4_sum23;
     logic        stage4_valid;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage4_sum01 <= 32'h0;
-            stage4_sum23 <= 32'h0;
+            stage4_sum01 <= 33'h0;
+            stage4_sum23 <= 33'h0;
             stage4_valid <= 1'b0;
         end else begin
-            if (stage3_valid) begin
-                stage4_sum01 <= stage3_sum01;
-                stage4_sum23 <= stage3_sum23;
-                stage4_valid <= 1'b1;
-            end else begin
-                stage4_valid <= 1'b0;
-            end
+            stage4_sum01 <= stage3_sum01;
+            stage4_sum23 <= stage3_sum23;
+            stage4_valid <= stage3_valid;
         end
     end
     
-    // Stage 5: Final sum
-    logic [31:0] stage5_result;
+    // Stage 5: Intermediate sum stage (NEW - additional pipeline stage for timing)
+    logic [33:0] stage5_presum;
     logic        stage5_valid;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage5_result <= 32'h0;
+            stage5_presum <= 34'h0;
             stage5_valid  <= 1'b0;
         end else begin
             if (stage4_valid) begin
-                stage5_result <= stage4_sum01 + stage4_sum23;
+                stage5_presum <= {1'b0, stage4_sum01} + {1'b0, stage4_sum23};
                 stage5_valid  <= 1'b1;
             end else begin
                 stage5_valid  <= 1'b0;
@@ -219,24 +224,20 @@ module dnn_accelerator (
         end
     end
     
-    // Stage 6: Register final result (additional pipeline stage for timing)
-    logic [31:0] stage6_result;
+    // Stage 6: Final result (additional register stage for timing)
+    logic [33:0] stage6_result;
     logic        stage6_valid;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage6_result <= 32'h0;
+            stage6_result <= 34'h0;
             stage6_valid  <= 1'b0;
         end else begin
-            if (stage5_valid) begin
-                stage6_result <= stage5_result;
-                stage6_valid  <= 1'b1;
-            end else begin
-                stage6_valid  <= 1'b0;
-            end
+            stage6_result <= stage5_presum;
+            stage6_valid  <= stage5_valid;
         end
     end
-    
+
     // ========================================================================
     // Result Memory Control
     // ========================================================================
@@ -250,41 +251,46 @@ module dnn_accelerator (
         READING = 2'b11
     } state_t;
     
-    state_t current_state;
+    state_t current_state, next_state;
     
-    // FSM State Register with Next State Logic - fully sequential
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             current_state <= IDLE;
         end else begin
-            case (current_state)
-                IDLE: begin
-                    if (EN_mac) begin
-                        current_state <= WRITING;
-                    end
-                end
-                
-                WRITING: begin
-                    if (result_write_count == 7'd64) begin
-                        current_state <= FULL;
-                    end
-                end
-                
-                FULL: begin
-                    if (EN_readMem) begin
-                        current_state <= READING;
-                    end
-                end
-                
-                READING: begin
-                    if (result_read_count == 6'd63) begin
-                        current_state <= IDLE;
-                    end
-                end
-                
-                default: current_state <= IDLE;
-            endcase
+            current_state <= next_state;
         end
+    end
+    
+    always_comb begin
+        next_state = current_state;
+        
+        case (current_state)
+            IDLE: begin
+                if (EN_mac) begin
+                    next_state = WRITING;
+                end
+            end
+            
+            WRITING: begin
+                if (result_write_count == 7'd63) begin
+                    next_state = FULL;
+                end
+            end
+            
+            FULL: begin
+                if (EN_blockRead) begin
+                    next_state = READING;
+                end
+            end
+            
+            READING: begin
+                if (result_read_count == 6'd63 && result_EN_readMem_int) begin
+                    next_state = IDLE;
+                end
+            end
+            
+            default: next_state = IDLE;
+        endcase
     end
     
     // Write Counter
@@ -294,7 +300,7 @@ module dnn_accelerator (
         end else begin
             if (current_state == IDLE || current_state == READING) begin
                 result_write_count <= 7'd0;
-            end else if (stage6_valid && (current_state == WRITING) && result_write_count < 7'd64) begin
+            end else if (stage6_valid && result_write_count < 7'd64) begin
                 result_write_count <= result_write_count + 7'd1;
             end
         end
@@ -307,49 +313,82 @@ module dnn_accelerator (
         end else begin
             if (current_state == FULL) begin
                 result_read_count <= 6'd0;
-            end else if (current_state == READING && result_read_count < 6'd63) begin
+            end else if (current_state == READING && result_EN_readMem_int) begin
                 result_read_count <= result_read_count + 6'd1;
             end
         end
     end
     
-    // Ready signal - fully sequential
+    // Ready signals (adjusted for deeper pipeline)
+    assign RDY_mac = (current_state == IDLE || current_state == WRITING) && 
+                     (result_write_count < 7'd51);  // Adjusted for deeper pipeline
+    assign RDY_blockRead = (current_state == FULL);
+    
+    // ========================================================================
+    // Memory Interface Signals
+    // ========================================================================
+    assign EN_writeMem   = stage6_valid && (current_state == WRITING);
+    assign writeMem_addr = result_write_count[5:0];
+    assign writeMem_val  = stage6_result;
+    
+    assign result_EN_readMem_int = (current_state == READING);
+    assign EN_readMem      = result_EN_readMem_int;
+    assign readMem_addr    = result_read_count;
+    
+    // Output registers
+    logic VALID_memVal_reg;
+    logic VALID_memVal_reg2;
+    logic [33:0] memVal_data_reg;
+    
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            RDY_mac <= 1'b0;
+            VALID_memVal_reg <= 1'b0;
+            memVal_data_reg  <= 34'h0;
         end else begin
-            RDY_mac <= (current_state == IDLE || current_state == WRITING) && 
-                       (result_write_count < 7'd64);
+            VALID_memVal_reg <= result_EN_readMem_int;
+            VALID_memVal_reg2 <= VALID_memVal_reg;
+            memVal_data_reg  <= readMem_val;
         end
     end
     
-    // ========================================================================
-    // Result Memory Interface (Exposed to external memory) - fully sequential
-    // ========================================================================
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            result_EN_writeMem   <= 1'b0;
-            result_writeMem_addr <= 6'h0;
-            result_writeMem_val  <= 32'h0;
-            result_EN_readMem_int <= 1'b0;
-            result_readMem_addr   <= 6'h0;
-        end else begin
-            result_EN_writeMem   <= stage6_valid && (current_state == WRITING);
-            result_writeMem_addr <= result_write_count[5:0];
-            result_writeMem_val  <= stage6_result;
-            result_EN_readMem_int <= (current_state == READING);
-            result_readMem_addr   <= result_read_count;
-        end
-    end
+    assign VALID_memVal = VALID_memVal_reg2;
+    assign memVal_data = memVal_data_reg;
     
-    // Output register - fully sequential
+    // ========================================================================
+    // Input Pipeline Stage (for timing)
+    // ========================================================================
+    logic [15:0] mac_vectA_0_reg, mac_vectB_0_reg;
+    logic [15:0] mac_vectA_1_reg, mac_vectB_1_reg;
+    logic [15:0] mac_vectA_2_reg, mac_vectB_2_reg;
+    logic [15:0] mac_vectA_3_reg, mac_vectB_3_reg;
+    logic        EN_mac_reg;
+    
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            VALID_memVal <= 1'b0;
-            memVal_data  <= 32'h0;
+            mac_vectA_0_reg <= 16'h0;
+            mac_vectB_0_reg <= 16'h0;
+            mac_vectA_1_reg <= 16'h0;
+            mac_vectB_1_reg <= 16'h0;
+            mac_vectA_2_reg <= 16'h0;
+            mac_vectB_2_reg <= 16'h0;
+            mac_vectA_3_reg <= 16'h0;
+            mac_vectB_3_reg <= 16'h0;
+            EN_mac_reg <= 1'b0;
         end else begin
-            VALID_memVal <= result_EN_readMem_int;
-            memVal_data  <= result_readMem_val;
+            // if (RDY_mac && EN_mac) begin
+            if (EN_mac) begin
+                mac_vectA_0_reg <= mac_vectA_0;
+                mac_vectB_0_reg <= mac_vectB_0;
+                mac_vectA_1_reg <= mac_vectA_1;
+                mac_vectB_1_reg <= mac_vectB_1;
+                mac_vectA_2_reg <= mac_vectA_2;
+                mac_vectB_2_reg <= mac_vectB_2;
+                mac_vectA_3_reg <= mac_vectA_3;
+                mac_vectB_3_reg <= mac_vectB_3;
+                EN_mac_reg <= 1'b1;
+            end else begin
+                EN_mac_reg <= 1'b0;
+            end
         end
     end
     
@@ -362,9 +401,9 @@ module dnn_accelerator (
     multiplier_module mult_inst_0 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vecA_0),
-        .mult_input1(mac_vecB_0),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_0_reg),
+        .mult_input1(mac_vectB_0_reg),
         .RDY_mult(),  // Not used
         .EN_blockRead(mult0_EN_blockRead),
         .VALID_memVal(mult0_VALID_memVal),
@@ -380,9 +419,9 @@ module dnn_accelerator (
     multiplier_module mult_inst_1 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vecA_1),
-        .mult_input1(mac_vecB_1),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_1_reg),
+        .mult_input1(mac_vectB_1_reg),
         .RDY_mult(),
         .EN_blockRead(mult1_EN_blockRead),
         .VALID_memVal(mult1_VALID_memVal),
@@ -398,9 +437,9 @@ module dnn_accelerator (
     multiplier_module mult_inst_2 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vecA_2),
-        .mult_input1(mac_vecB_2),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_2_reg),
+        .mult_input1(mac_vectB_2_reg),
         .RDY_mult(),
         .EN_blockRead(mult2_EN_blockRead),
         .VALID_memVal(mult2_VALID_memVal),
@@ -416,9 +455,9 @@ module dnn_accelerator (
     multiplier_module mult_inst_3 (
         .clk(clk),
         .rst_n(rst_n),
-        .EN_mult(EN_mac && RDY_mac),
-        .mult_input0(mac_vecA_3),
-        .mult_input1(mac_vecB_3),
+        .EN_mult(EN_mac_reg),
+        .mult_input0(mac_vectA_3_reg),
+        .mult_input1(mac_vectB_3_reg),
         .RDY_mult(),
         .EN_blockRead(mult3_EN_blockRead),
         .VALID_memVal(mult3_VALID_memVal),
