@@ -6,15 +6,17 @@
 //
 // Computation: result = (A0*B0) + (A1*B1) + (A2*B2) + (A3*B3)
 //
-// PIPELINE STAGES (Total: 9 cycles - ENHANCED PIPELINING):
+// PIPELINE STAGES (Total: 11 cycles - ENHANCED PIPELINING):
 //   Stage 0:   Input registration (1 cycle)
 //   Stage 1-2: Multipliers from Project 2 (2 cycles)
 //   Stage 3:   Capture products (1 cycle) 
-//   Stage 4:   Pipeline products before addition (1 cycle) - NEW
+//   Stage 4:   Pipeline products before addition (1 cycle)
 //   Stage 5:   First level partial sums (1 cycle)
 //   Stage 6:   Pipeline partial sums (1 cycle)
-//   Stage 7:   Second level partial sums (1 cycle) - NEW
-//   Stage 8:   Final sum (1 cycle)
+//   Stage 7:   Additional pipeline before final sum (1 cycle) - NEW
+//   Stage 8:   Final sum computation (1 cycle)
+//   Stage 9:   Pipeline final sum (1 cycle) - NEW
+//   Stage 10:  Final result register (1 cycle)
 //
 // DESIGN APPROACH - MAXIMUM IP REUSE:
 // This design uses 4 complete instances of multiplier_module from Project 2!
@@ -206,7 +208,23 @@ module dnn_accelerator (
         end
     end
     
-    // Stage 5: Intermediate sum stage (NEW - additional pipeline stage for timing)
+    // Stage 4.5: Additional pipeline stage before final sum (NEW - breaks critical path)
+    logic [32:0] stage4p5_sum01, stage4p5_sum23;
+    logic        stage4p5_valid;
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stage4p5_sum01 <= 33'h0;
+            stage4p5_sum23 <= 33'h0;
+            stage4p5_valid <= 1'b0;
+        end else begin
+            stage4p5_sum01 <= stage4_sum01;
+            stage4p5_sum23 <= stage4_sum23;
+            stage4p5_valid <= stage4_valid;
+        end
+    end
+    
+    // Stage 5: Intermediate sum stage (additional pipeline stage for timing)
     logic [33:0] stage5_presum;
     logic        stage5_valid;
     
@@ -215,8 +233,8 @@ module dnn_accelerator (
             stage5_presum <= 34'h0;
             stage5_valid  <= 1'b0;
         end else begin
-            if (stage4_valid) begin
-                stage5_presum <= {1'b0, stage4_sum01} + {1'b0, stage4_sum23};
+            if (stage4p5_valid) begin
+                stage5_presum <= {1'b0, stage4p5_sum01} + {1'b0, stage4p5_sum23};
                 stage5_valid  <= 1'b1;
             end else begin
                 stage5_valid  <= 1'b0;
@@ -224,17 +242,31 @@ module dnn_accelerator (
         end
     end
     
-    // Stage 6: Final result (additional register stage for timing)
-    logic [33:0] stage6_result;
+    // Stage 6: Pipeline after final sum (breaks critical path further)
+    logic [33:0] stage6_presum;
     logic        stage6_valid;
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage6_result <= 34'h0;
+            stage6_presum <= 34'h0;
             stage6_valid  <= 1'b0;
         end else begin
-            stage6_result <= stage5_presum;
+            stage6_presum <= stage5_presum;
             stage6_valid  <= stage5_valid;
+        end
+    end
+    
+    // Stage 7: Final result (additional register stage for timing)
+    logic [33:0] stage7_result;
+    logic        stage7_valid;
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stage7_result <= 34'h0;
+            stage7_valid  <= 1'b0;
+        end else begin
+            stage7_result <= stage6_presum;
+            stage7_valid  <= stage6_valid;
         end
     end
 
@@ -300,7 +332,7 @@ module dnn_accelerator (
         end else begin
             if (current_state == IDLE || current_state == READING) begin
                 result_write_count <= 7'd0;
-            end else if (stage6_valid && result_write_count < 7'd64) begin
+            end else if (stage7_valid && result_write_count < 7'd64) begin
                 result_write_count <= result_write_count + 7'd1;
             end
         end
@@ -321,15 +353,15 @@ module dnn_accelerator (
     
     // Ready signals (adjusted for deeper pipeline)
     assign RDY_mac = (current_state == IDLE || current_state == WRITING) && 
-                     (result_write_count < 7'd51);  // Adjusted for deeper pipeline
+                     (result_write_count < 7'd49);  // Adjusted for deeper pipeline (11 stages total)
     assign RDY_blockRead = (current_state == FULL);
     
     // ========================================================================
     // Memory Interface Signals
     // ========================================================================
-    assign EN_writeMem   = stage6_valid && (current_state == WRITING);
+    assign EN_writeMem   = stage7_valid && (current_state == WRITING);
     assign writeMem_addr = result_write_count[5:0];
-    assign writeMem_val  = stage6_result;
+    assign writeMem_val  = stage7_result;
     
     assign result_EN_readMem_int = (current_state == READING);
     assign EN_readMem      = result_EN_readMem_int;
