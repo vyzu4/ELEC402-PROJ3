@@ -26,7 +26,7 @@ if { $RUN_NAME == "v2_500" } {
 
 	set_load [expr [load_of [get_lib_pins */NAND2X4/A]] * 4] [all_outputs]
 
-	set_false_path -to */SI
+	set_db use_scan_seqs_for_non_dft false
 }
 
 # v3 constraints 
