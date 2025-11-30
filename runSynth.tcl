@@ -29,7 +29,7 @@ check_design -unresolved
 # create_clock [get_ports {clk}] -name clk -period 1.25 -waveform {0 0.625}
 
 # source the constraint file
-# source /ubc/ece/home/ugrads/v/vzhu03/ELEC402/ELEC402-PROJ3/counter_constraints.tcl
+source /ubc/ece/home/ugrads/v/vzhu03/ELEC402/ELEC402-PROJ3/counter_constraints.tcl
 
 # synthesis commands 
 synthesize -to_generic -effort high
@@ -37,7 +37,7 @@ synthesize -to_mapped -effort high -no_incr
 synthesize -to_mapped -effort high -incr
 insert_tiehilo_cells
 
-source /ubc/ece/home/ugrads/v/vzhu03/ELEC402/ELEC402-PROJ3/counter_constraints.tcl
+# source /ubc/ece/home/ugrads/v/vzhu03/ELEC402/ELEC402-PROJ3/counter_constraints.tcl
 
 # exporting output files
 report_area > ./synthesis/reports/${TOP_LEVEL}_${RUN_NAME}_area.rpt
