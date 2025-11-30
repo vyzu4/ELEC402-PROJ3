@@ -29,8 +29,8 @@
 // ============================================================================
 
 module dnn_accelerator (
-    input  CLK, 
-    input  RST_N,
+    input  clk, 
+    input  rst_n,
     
     // MAC (Multiply-Accumulate) interface
     input  EN_mac,                // Enable MAC operation
@@ -123,8 +123,8 @@ module dnn_accelerator (
     logic [31:0] stage1_prod0, stage1_prod1, stage1_prod2, stage1_prod3;
     logic        stage1_valid;
     
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             stage1_prod0 <= 32'h0;
             stage1_prod1 <= 32'h0;
             stage1_prod2 <= 32'h0;
@@ -150,8 +150,8 @@ module dnn_accelerator (
     logic [32:0] stage2_sum01, stage2_sum23;
     logic        stage2_valid;
     
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             stage2_sum01 <= 33'h0;
             stage2_sum23 <= 33'h0;
             stage2_valid <= 1'b0;
@@ -170,8 +170,8 @@ module dnn_accelerator (
     logic [32:0] stage2p5_sum01, stage2p5_sum23;
     logic        stage2p5_valid;
     
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             stage2p5_sum01 <= 33'h0;
             stage2p5_sum23 <= 33'h0;
             stage2p5_valid <= 1'b0;
@@ -186,8 +186,8 @@ module dnn_accelerator (
     logic [33:0] stage3_result;
     logic        stage3_valid;
     
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             stage3_result <= 34'h0;
             stage3_valid  <= 1'b0;
         end else begin
@@ -216,8 +216,8 @@ module dnn_accelerator (
     state_t current_state, next_state;
     
     // FSM State Register
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             current_state <= IDLE;
         end else begin
             current_state <= next_state;
@@ -258,8 +258,8 @@ module dnn_accelerator (
     end
     
     // Write Counter
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             result_write_count <= 7'd0;
         end else begin
             if (current_state == IDLE || current_state == READING) begin
@@ -271,8 +271,8 @@ module dnn_accelerator (
     end
     
     // Read Counter
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             result_read_count <= 6'd0;
         end else begin
             if (current_state == FULL) begin
@@ -304,8 +304,8 @@ module dnn_accelerator (
     logic VALID_memVal_reg2;
     logic [33:0] memVal_data_reg;
     
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             VALID_memVal_reg <= 1'b0;
             memVal_data_reg  <= 34'h0;
         end else begin
@@ -327,8 +327,8 @@ module dnn_accelerator (
     logic [15:0] mac_vectA_3_reg, mac_vectB_3_reg;
     logic        EN_mac_reg;
     
-    always_ff @(posedge CLK or negedge RST_N) begin
-        if (!RST_N) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             mac_vectA_0_reg <= 16'h0;
             mac_vectB_0_reg <= 16'h0;
             mac_vectA_1_reg <= 16'h0;
@@ -363,8 +363,8 @@ module dnn_accelerator (
     // We trigger all 4 simultaneously and collect results via write interface
     
     multiplier_module mult_inst_0 (
-        .clk(CLK),
-        .rst_n(RST_N),
+        .clk(clk),
+        .rst_n(rst_n),
         .EN_mult(EN_mac_reg),
         .mult_input0(mac_vectA_0_reg),
         .mult_input1(mac_vectB_0_reg),
@@ -381,8 +381,8 @@ module dnn_accelerator (
     );
     
     multiplier_module mult_inst_1 (
-        .clk(CLK),
-        .rst_n(RST_N),
+        .clk(clk),
+        .rst_n(rst_n),
         .EN_mult(EN_mac_reg),
         .mult_input0(mac_vectA_1_reg),
         .mult_input1(mac_vectB_1_reg),
@@ -399,8 +399,8 @@ module dnn_accelerator (
     );
     
     multiplier_module mult_inst_2 (
-        .clk(CLK),
-        .rst_n(RST_N),
+        .clk(clk),
+        .rst_n(rst_n),
         .EN_mult(EN_mac_reg),
         .mult_input0(mac_vectA_2_reg),
         .mult_input1(mac_vectB_2_reg),
@@ -417,8 +417,8 @@ module dnn_accelerator (
     );
     
     multiplier_module mult_inst_3 (
-        .clk(CLK),
-        .rst_n(RST_N),
+        .clk(clk),
+        .rst_n(rst_n),
         .EN_mult(EN_mac_reg),
         .mult_input0(mac_vectA_3_reg),
         .mult_input1(mac_vectB_3_reg),
