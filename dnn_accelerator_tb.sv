@@ -8,9 +8,9 @@
 // ============================================================================
 
 `timescale 1ns / 1ps
-`define CLK_DELAY #2;
-`define HALF_CLK_DELAY #1;
-`define HALF_CLK_DELAY_MINUS_EDGE_GAP #0.9;
+`define clk_DELAY #2;
+`define HALF_clk_DELAY #1;
+`define HALF_clk_DELAY_MINUS_EDGE_GAP #0.9;
 `define EDGE_GAP #0.1;
 
 module dnn_accelerator_tb;
@@ -26,13 +26,13 @@ localparam N = 33;  // 34-bit results for dot product
 // ============================================================================
 // Clock and Reset
 // ============================================================================
-reg CLK;
+reg clk;
 reg RESET;
-wire RST_N;
-assign RST_N = ~RESET;
+wire rst_n;
+assign rst_n = ~RESET;
 
-// CLK generation - 2ns period (500MHz)
-always #1 CLK = ~CLK; 
+// clk generation - 2ns period (500MHz)
+always #1 clk = ~clk; 
 
 // ============================================================================
 // DUT Interface Signals
@@ -71,8 +71,8 @@ wire [N:0] memVal_data;
 // DUT Instantiation
 // ============================================================================
 dnn_accelerator dnn_accelerator_dut(
-    .CLK(CLK), 
-    .RST_N(RST_N),
+    .clk(clk), 
+    .rst_n(rst_n),
     
     .EN_mac(EN_mac), 
     .RDY_mac(RDY_mac),
@@ -107,11 +107,11 @@ memory_wrapper_2port #(
     .LOGDEPTH(ADDR_WIDTH), 
     .WIDTH(N+1)
 ) memory_2port ( 
-    .clkA(CLK), 
+    .clkA(clk), 
     .aA(readMem_addr), 
     .cenA(~EN_readMem), 
     .q(readMem_val),
-    .clkB(CLK), 
+    .clkB(clk), 
     .aB(writeMem_addr), 
     .cenB(~EN_writeMem), 
     .d(writeMem_val)
@@ -122,7 +122,7 @@ memory_wrapper_2port #(
 // ============================================================================
 task TASK_init;
 begin
-    CLK = 1'b0;
+    clk = 1'b0;
     RESET = 1'b1;
     EN_mac = 1'b0;
     mac_vectA_0 = 16'h0;
@@ -143,11 +143,11 @@ endtask
 task TASK_reset;
 begin
     RESET = 1'b0;
-    `CLK_DELAY;
+    `clk_DELAY;
     RESET = 1'b1;
-    `CLK_DELAY;
+    `clk_DELAY;
     RESET = 1'b0;
-    `CLK_DELAY;
+    `clk_DELAY;
 end
 endtask
 
@@ -215,7 +215,7 @@ begin
         for (i = 0; i < 64; i = i + 1) begin
             // Wait until accelerator is ready
             while (!RDY_mac) begin
-                @(posedge CLK);
+                @(posedge clk);
             end
             
             // Generate test vectors
@@ -229,7 +229,7 @@ begin
             test_vecB[3] = (i + k + 4) & 16'hFFFF;
             
             // Apply inputs at negative edge (setup before posedge)
-            @(negedge CLK);
+            @(negedge clk);
             mac_vectA_0 = test_vecA[0];
             mac_vectB_0 = test_vecB[0];
             mac_vectA_1 = test_vecA[1];
@@ -257,7 +257,7 @@ begin
                 $display("        Expected result = %0d", expMACBuff[i]);
             end
             
-            @(posedge CLK);
+            @(posedge clk);
             #0.1;  // Small delay after clock edge
             // EN_mac = 1'b0;
         end
@@ -265,26 +265,26 @@ begin
         $display("[%0t] All 64 dot products submitted", $time);
 
         while (RDY_mac) begin
-            @(posedge CLK);
+            @(posedge clk);
         end
 
-        @(posedge CLK);
+        @(posedge clk);
 
         EN_mac = 1'b0;
         
         // // Wait for pipeline to complete and memory to fill
-        // repeat(20) @(posedge CLK);
+        // repeat(20) @(posedge clk);
         
         // Wait until not ready (memory full)
         while (RDY_mac) begin
-            @(posedge CLK);
+            @(posedge clk);
         end
         
         $display("[%0t] Memory is now full", $time);
         
         // Wait until RDY_blockRead is asserted
         while (!RDY_blockRead) begin
-            @(posedge CLK);
+            @(posedge clk);
         end
         
         $display("[%0t] Ready for block read\n", $time);
@@ -295,21 +295,21 @@ begin
         $display("[%0t] Phase 2: Reading back results...", $time);
         
         // Start read operation at negative edge
-        @(negedge CLK);
+        @(negedge clk);
         EN_blockRead = 1'b1;
-        @(posedge CLK);
+        @(posedge clk);
         #0.1;
         EN_blockRead = 1'b0;
         
         // Wait for first valid data
         while (!VALID_memVal) begin
-            @(posedge CLK);
+            @(posedge clk);
         end
         
         // Read and verify all 64 results
         for (j = 0; j < 64; j = j + 1) begin
             while (!VALID_memVal) begin
-                @(posedge CLK);
+                @(posedge clk);
             end
             
             total_tests = total_tests + 1;
@@ -321,12 +321,12 @@ begin
                 $display("[%0t] Result %0d: %0d ✓", $time, j, memVal_data);
             end
             
-            @(posedge CLK);
+            @(posedge clk);
         end
         
         $display("[%0t] All 64 results verified", $time);
         
-        repeat(10) @(posedge CLK);
+        repeat(10) @(posedge clk);
         $display("");
     end
     
@@ -355,7 +355,7 @@ initial begin
     TASK_reset;
     TASK_DUT;
     
-    repeat(10) @(posedge CLK);
+    repeat(10) @(posedge clk);
     $finish;
 end
 
