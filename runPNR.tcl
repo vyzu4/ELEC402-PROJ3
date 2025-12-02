@@ -1,6 +1,6 @@
 # 0) Prep - a) folders to point to the synthesis outputs
-set PNR_OUT_FOLDER /ubc/ece/home/ss/grads/avilash/Projects/elec402-intro-to-vlsi/multiplier-module/pnr/output
-set SYNTH_OUT_FOLDER /ubc/ece/home/ss/grads/avilash/Projects/elec402-intro-to-vlsi/multiplier-module/syn/outputs
+set PNR_OUT_FOLDER /ubc/ece/home/ugrads/v/vzhu03/ELEC402/pnr/output/
+set SYNTH_OUT_FOLDER /ubc/ece/home/ugrads/v/vzhu03/ELEC402/synthesis/outputs/
 
 # 0) Prep - b) library timing, lef folders
 set LIB_FOLDER /ubc/ece/data/cmc2/kits/GPDK45/gsclib045_all_v4.4/gsclib045/timing
@@ -8,8 +8,8 @@ set RCTECH_FOLDER /ubc/ece/data/cmc2/kits/GPDK45/gsclib045_all_v4.4/gsclib045/qr
 set LEF_FOLDER /ubc/ece/data/cmc2/kits/GPDK45/gsclib045_all_v4.4/gsclib045/lef
 
 # 0) Prep - c) specifiers for the design, versioning etc
-set TOP_LEVEL "CHANGE THIS"
-set RUN_NAME "CHANGE_THIS IF VERSIONING"
+set TOP_LEVEL "dnn_accelerator"
+set RUN_NAME "v2_500"
 
 setMultiCpuUsage -localCpu 1
 setDesignMode -process 45 -node "unspecified"
@@ -19,12 +19,14 @@ setDesignMode -process 45 -node "unspecified"
 set init_lef_file [list "$LEF_FOLDER/gsclib045_tech.lef" "$LEF_FOLDER/gsclib045_macro.lef"]
 
 set init_verilog [list "$SYNTH_OUT_FOLDER/${TOP_LEVEL}_${RUN_NAME}_map.sv"]
-set init_top_cell mkMultBuff
+set init_top_cell dnn_accelerator
 
 set init_pwr_net "VDD"
 set init_gnd_net "VSS"
 
-set init_mmmc_file "MMMC.tcl"
+#THIS FILE MUST BE IN SAME DIR AS INNOVUS RUN
+set init_mmmc_file "MMMC.tcl" 
+# set init_mmmc_file '/ubc/ece/home/ugrads/v/vzhu03/ELEC402/ELEC402-PROJ3/MMMC.tcl'
 
 init_design
 
@@ -47,17 +49,17 @@ globalNetConnect VSS -type tielo -instanceBasename * -hierarchicalInstance {}
 # 2c) Adding the power ring
 setAddRingMode -ring_target default -extend_over_row 0 -ignore_rows 0 -avoid_short 0 -skip_crossing_trunks "none" -stacked_via_top_layer "Metal11" -stacked_via_bottom_layer "Metal1" -via_using_exact_crossover_size 1 -orthogonal_only true -skip_via_on_pin {  standardcell } -skip_via_on_wire_shape {  noshape }
 
-addRing -nets [list "VDD" "VSS"] -type core_rings -follow "core" -layer {top "Metal5" bottom "Metal5" left "Metal6" right "Metal6"} -width {top 0 bottom 0 left 0 right 0} -spacing {top 0.45 bottom 0.45 left 0.45 right 0.45} -offset {top 1.8 bottom 1.8 left 1.8 right 1.8} -center 0 -threshold 0 -jog_distance 0 -snap_wire_center_to_grid "None"
+addRing -nets [list "VDD" "VSS"] -type core_rings -follow "core" -layer {top "Metal7" bottom "Metal7" left "Metal8" right "Metal8"} -width {top 1.8 bottom 1.8 left 1.8 right 1.8} -spacing {top 0.45 bottom 0.45 left 0.45 right 0.45} -offset {top 1.8 bottom 1.8 left 1.8 right 1.8} -center 0 -threshold 0 -jog_distance 0 -snap_wire_center_to_grid "None"
 
 # 2d) sroute for making the horizontal power tracks
 setSrouteMode -viaConnectToShape { noshape }
 
-sroute -connect { blockPin padPin padRing corePin floatingStripe } -layerChangeRange { Metal1(1) Metal6(6) } -blockPinTarget { nearestTarget } -padPinPortConnect { allPort oneGeom } -padPinTarget { nearestTarget } -corePinTarget { firstAfterRowEnd } -floatingStripeTarget { blockring padring ring stripe ringpin blockpin followpin } -allowJogging 1 -crossoverViaLayerRange { Metal1(1) Metal11(11) } -nets { VDD VSS } -allowLayerChange 1 -blockPin useLef -targetViaLayerRange { Metal1(1) Metal11(11) }
+sroute -connect { blockPin padPin padRing corePin floatingStripe } -layerChangeRange { Metal1(1) Metal8(8) } -blockPinTarget { nearestTarget } -padPinPortConnect { allPort oneGeom } -padPinTarget { nearestTarget } -corePinTarget { firstAfterRowEnd } -floatingStripeTarget { blockring padring ring stripe ringpin blockpin followpin } -allowJogging 1 -crossoverViaLayerRange { Metal1(1) Metal11(11) } -nets { VDD VSS } -allowLayerChange 1 -blockPin useLef -targetViaLayerRange { Metal1(1) Metal11(11) }
 
 # 2e) Adding power stripes 
 setAddStripeMode -ignore_block_check false -break_at none -route_over_rows_only false -rows_without_stripes_only false -extend_to_closest_target none -stop_at_last_wire_for_area false -partial_set_thru_domain false -ignore_nondefault_domains false -trim_antenna_back_to_shape none -spacing_type edge_to_edge -spacing_from_block 0 -stripe_min_length stripe_width -stacked_via_top_layer Metal11 -stacked_via_bottom_layer Metal1 -via_using_exact_crossover_size false -split_vias false -orthogonal_only true -allow_jog { padcore_ring  block_ring } -skip_via_on_pin { standardcell } -skip_via_on_wire_shape { noshape }
 
-addStripe -nets [list "VDD" "VSS"] -layer "Metal6" -direction vertical -width 0 -spacing 0.45 -number_of_sets 4 -start_from left -start_offset 3 -switch_layer_over_obs false -max_same_layer_jog_length 2 -padcore_ring_top_layer_limit Metal11 -padcore_ring_bottom_layer_limit Metal1 -block_ring_top_layer_limit Metal11 -block_ring_bottom_layer_limit Metal1 -use_wire_group 0 -snap_wire_center_to_grid None
+addStripe -nets [list "VDD" "VSS"] -layer "Metal8" -direction vertical -width 0 -spacing 0.45 -number_of_sets 4 -start_from left -start_offset 3 -switch_layer_over_obs false -max_same_layer_jog_length 2 -padcore_ring_top_layer_limit Metal11 -padcore_ring_bottom_layer_limit Metal1 -block_ring_top_layer_limit Metal11 -block_ring_bottom_layer_limit Metal1 -use_wire_group 0 -snap_wire_center_to_grid None
 
 
 # 2f) Pin placement
@@ -68,7 +70,7 @@ setPinAssignMode -pinEditInBatch true
 
 editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 2.0 -end 0 32.0 -pin {VALID_memVal memVal_data*}
 
-editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 34.0 -end 0 36.0 -pin {CLK RST_N}
+editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 34.0 -end 0 36.0 -pin {clk rst_n}
 
 editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 38.0 -end 0 40.0 -pin {EN_blockRead RDY_blockRead}
 
