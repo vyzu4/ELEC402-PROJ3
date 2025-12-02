@@ -65,6 +65,20 @@ addStripe -nets [list "VDD" "VSS"] -layer "Metal8" -direction vertical -width 0 
 # 2f) Pin placement
 setPinAssignMode -pinEditInBatch true
 
+set all_inputs [get_db [get_db ports -if .direction==in] .name]
+editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 50.0 -end 0 175 -pin $all_inputs
+
+set all_outputs [get_db [get_db ports -if .direction==out] .name]
+set memVal_outputs [get_db ports *memVal_data*]
+
+foreach item $memVal_outputs {
+	puts $item
+	set idx [lsearch -exact $all_outputs [get_db $item .name]]
+	if {$idx >= 0} {
+		set all_outputs [lreplace $all_outputs $idx $idx]
+	}
+}
+
 # NOTE: The command below spreads all the wires on the Right edge of the floorplan
 #editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Right -layer 3 -spreadType range -start 0 10.0 -end 0 65.0 -pin {CLK RST_N EN_blockRead EN_mult RDY_mult EN_readMem EN_writeMem writeMem_addr* memVal_data* mult_input* readMem_addr* RDY_blockRead VALID_memVal readMem_val* writeMem_val* }
 
@@ -115,28 +129,30 @@ saveDesign chkpts/${TOP_LEVEL}_preCTS
 # 4) Clock Tree Synthesis
 reset_ccopt_config
 
-update_constraint_mode -name cmFunc -sdc_files "${TOP_LEVEL}_cts.sdc"
+set OUTPUTS_FOLDER /ubc/ece/home/ugrads/v/vzhu03/ELEC402/synthesis/outputs
+
+update_constraint_mode -name cmFunc -sdc_files "$OUTPUTS_FOLDER/${TOP_LEVEL}_v2_500_map.sdc"
 
 # 4a) Setting the clock tree root, period
 # NOTE: To list all ccopt_properties, use - get_ccopt_property -help *
-set_ccopt_property cts_is_sdc_clock_root -pin CLK true
-create_ccopt_clock_tree -name CLK -source CLK -no_skew_group
-set_ccopt_property clock_period -pin CLK [lindex [get_db clocks .period] 0]
+set_ccopt_property cts_is_sdc_clock_root -pin clk true
+create_ccopt_clock_tree -name clk -source clk -no_skew_group
+set_ccopt_property clock_period -pin clk [lindex [get_db clocks .period] 0]
 
 # 4b) Set params for cts
 set_ccopt_property max_fanout 4
 set_ccopt_property target_max_trans 0.25
 set_ccopt_property buffer_cells {CLKBUFX2 CLKBUFX3 CLKBUFX4 CLKBUFX8 CLKBUFX12 CLKBUFX16}
 
-create_route_type -name CLKRouteType -top_preferred_layer MetalY -bottom_preferred_layer MetalX 
+create_route_type -name CLKRouteType -top_preferred_layer Metal7 -bottom_preferred_layer Metal4 
 set_ccopt_property route_type CLKRouteType
 
 # 4c) Skew group to balance non generated clock:CLK in timing_config:cmFunc 
-create_ccopt_skew_group -name CLK/cmFunc -sources CLK -auto_sinks
-set_ccopt_property include_source_latency -skew_group CLK/cmFunc true
-set_ccopt_property extracted_from_clock_name -skew_group CLK/cmFunc CLK
-set_ccopt_property extracted_from_constraint_mode_name -skew_group CLK/cmFunc cmFunc
-set_ccopt_property extracted_from_delay_corners -skew_group CLK/cmFunc {dc_lsMax_rcWorst dc_lsMin_rcBest}
+create_ccopt_skew_group -name clk/cmFunc -sources clk -auto_sinks
+set_ccopt_property include_source_latency -skew_group clk/cmFunc true
+set_ccopt_property extracted_from_clock_name -skew_group clk/cmFunc clk
+set_ccopt_property extracted_from_constraint_mode_name -skew_group clk/cmFunc cmFunc
+set_ccopt_property extracted_from_delay_corners -skew_group clk/cmFunc {dc_lsMax_rcWorst dc_lsMin_rcBest}
 
 # 4c) Check convergence and make clock tree
 check_ccopt_clock_tree_convergence
