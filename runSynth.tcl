@@ -17,7 +17,7 @@ set_db library "slow_vdd1v0_basicCells.lib"
 set TOP_LEVEL dnn_accelerator
 
 # read sv file
-read_hdl -sv $SOURCE_FOLDER/${TOP_LEVEL}.sv
+read_hdl -sv $SOURCE_FOLDER/multiplier_module.sv $SOURCE_FOLDER/${TOP_LEVEL}.sv
 
 # convert to gate level netlist
 elaborate
