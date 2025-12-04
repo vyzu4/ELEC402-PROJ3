@@ -38,7 +38,7 @@ setFPlanMode -snapDieGrid manufacturing
 setFPlanMode -snapCoreGrid manufacturing
 
 # Floorplan -> args for -r flag -- {aspect ratio, utilization, margins on [Left Bottom Right Top]
-floorPlan -site CoreSite -r 1 0.75 8 8 8 8
+floorPlan -site CoreSite -r 1 0.70 8 8 8 8
 
 # 2b) connecting the global power nets to the power nets on gates/tie-hi or tie-lo
 globalNetConnect VDD -type pgpin -pin VDD -instanceBasename * -hierarchicalInstance {}
@@ -69,15 +69,19 @@ set all_inputs [get_db [get_db ports -if .direction==in] .name]
 editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 50.0 -end 0 175 -pin $all_inputs
 
 set all_outputs [get_db [get_db ports -if .direction==out] .name]
-set memVal_outputs [get_db ports *memVal_data*]
+set memVal_outputs [get_db [get_db ports *memVal_data*] .name]
 
 foreach item $memVal_outputs {
 	puts $item
-	set idx [lsearch -exact $all_outputs [get_db $item .name]]
+	set idx [lsearch -exact $all_outputs $item]
 	if {$idx >= 0} {
 		set all_outputs [lreplace $all_outputs $idx $idx]
 	}
 }
+
+editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Right -layer 3 -spreadType range -start 211.905 50.0 -end 211.905 175 -pin $all_outputs
+
+editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Right -layer 3 -spreadType range -start 211.905 50.0 -end 211.905 175 -pin $memVal_outputs
 
 # NOTE: The command below spreads all the wires on the Right edge of the floorplan
 #editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Right -layer 3 -spreadType range -start 0 10.0 -end 0 65.0 -pin {CLK RST_N EN_blockRead EN_mult RDY_mult EN_readMem EN_writeMem writeMem_addr* memVal_data* mult_input* readMem_addr* RDY_blockRead VALID_memVal readMem_val* writeMem_val* }
