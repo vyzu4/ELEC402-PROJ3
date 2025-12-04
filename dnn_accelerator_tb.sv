@@ -1,10 +1,10 @@
 // ============================================================================
-// Testbench for mkMACBuff (Project 3)
+// Testbench for dnn_accelerator (Project 3)
 // ============================================================================
 // This testbench verifies the DNN accelerator which uses 4 instances of
-// multiplier_module from Project 2.
+// multiplier_800M_16b.
 //
-// Pipeline: 1 (input reg) + 2 (mult from P2) + 4 (adder tree) = 7 cycles total latency
+// Pipeline: 1 (input reg) + 4 (multiplier_800M_16b) + 1 (adder tree) = 6 cycles total latency
 // ============================================================================
 
 `timescale 1ns / 1ps
@@ -192,8 +192,8 @@ begin
     total_tests = 0;
     
     $display("\n========================================");
-    $display("  mkMACBuff Testbench");
-    $display("  Using 4x multiplier_module from Project 2");
+    $display("  dnn_accelerator Testbench");
+    $display("  Using 4x multiplier_800M_16b");
     $display("  Testing 8 iterations of 64 dot products");
     $display("========================================\n");
     
@@ -209,8 +209,8 @@ begin
         // Phase 1: Perform 64 dot products
         // ====================================================================
         $display("[%0t] Phase 1: Starting 64 dot products...", $time);
-        $display("        Using 4x Project 2 multiplier_module");
-        $display("        Pipeline: 1 (input) + 2 (mult) + 4 (adder) = 7 cycles\n");
+        $display("        Using 4x multiplier_800M_16b");
+        $display("        Pipeline: 1 (input) + 4 (mult) + 1 (adder) = 6 cycles\n");
         
         for (i = 0; i < 64; i = i + 1) begin
             // Wait until accelerator is ready
