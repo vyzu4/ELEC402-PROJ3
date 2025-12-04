@@ -11,8 +11,8 @@ if { $RUN_NAME == "v1" } {
 
 # v2 constraints
 if { $RUN_NAME == "v2_500" } {
-	set clk_pin clk 
-	set rstn_pin reset
+	set clk_pin CLK 
+	set rstn_pin RST_N
 
 	set clk_period 2
 	set eighths [ expr $clk_period / 8.0 ]
@@ -22,11 +22,26 @@ if { $RUN_NAME == "v2_500" } {
 
 	create_clock [get_ports $clk_pin] -name $clk_pin -period $clk_period
 
-	set_driving_cell -lib_cell DFFX1 -input_transition_rise [expr 1 * $eighths] -input_transition_fall [expr 1 * $eighths] $inputs_no_clk_rstn [all_inputs]
+	set_driving_cell -lib_cell DFFQX1 -input_transition_rise [expr 1 * $eighths] -input_transition_fall [expr 1 * $eighths] $inputs_no_clk_rstn
 
 	set_load [expr [load_of [get_lib_pins */NAND2X4/A]] * 4] [all_outputs]
+	
+	#set input and output transitions
+	set_input_delay -clock CLK [expr $clk_period/4.0] $inputs_no_clk_rstn
+	set_output_delay -clock CLK [expr $clk_period/4.0] [all_outputs]
 
-	set_db use_scan_seqs_for_non_dft false
+	#set clock latency and uncertainties
+	set_clock_latency -early -late -source 0.250 [get_ports CLK]
+	set_clock_uncertainty 0.250 [get_ports CLK]
+
+	#set max_fanout of all inputs to 4
+	set_max_fanout 4.0 $inputs_no_clk_rstn
+
+	#disable functional path through SI pins
+	#set_db use_scan_seqs_for_non_dft false
+	
+	#prevent genus from using scan FF to save area since there are no DFT logic in the design
+	set_dont_use [get_lib_cells *SDFF*] true
 }
 
 # v3 constraints 
