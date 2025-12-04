@@ -14,10 +14,10 @@ set_db lib_search_path [concat [get_db lib_search_path] $SOURCE_FOLDER $LIB_FOLD
 set_db library "slow_vdd1v0_basicCells.lib"
 
 # set top level module
-set TOP_LEVEL dnn_accelerator
+set TOP_LEVEL mkMACBuff
 
 # read sv file
-read_hdl -sv $SOURCE_FOLDER/multiplier_module.sv $SOURCE_FOLDER/${TOP_LEVEL}.sv
+read_hdl -sv $SOURCE_FOLDER/multiplier_800M_16b.sv $SOURCE_FOLDER/${TOP_LEVEL}.sv
 
 # convert to gate level netlist
 elaborate
