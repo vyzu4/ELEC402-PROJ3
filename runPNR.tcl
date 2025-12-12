@@ -64,7 +64,7 @@ sroute -connect { blockPin padPin padRing corePin floatingStripe } -layerChangeR
 #NEW Dec-03
 
 setAddStripeMode -ignore_block_check false -break_at none -route_over_rows_only false -rows_without_stripes_only false -extend_to_closest_target none -stop_at_last_wire_for_area false -partial_set_thru_domain false -ignore_nondefault_domains false -trim_antenna_back_to_shape none -spacing_type edge_to_edge -spacing_from_block 0 -stripe_min_length stripe_width -stacked_via_top_layer Metal11 -stacked_via_bottom_layer Metal1 -via_using_exact_crossover_size false -split_vias false -orthogonal_only true -allow_jog { padcore_ring  block_ring } -skip_via_on_pin {  standardcell } -skip_via_on_wire_shape {  noshape   }
-addStripe -nets {VDD VSS} -layer Metal8 -direction vertical -width 1.8 -spacing 0.45 -set_to_set_distance 12 -start_from left -start_offset 6.5 -switch_layer_over_obs false -max_same_layer_jog_length 2 -padcore_ring_top_layer_limit Metal11 -padcore_ring_bottom_layer_limit Metal1 -block_ring_top_layer_limit Metal11 -block_ring_bottom_layer_limit Metal1 -use_wire_group 0 -snap_wire_center_to_grid None
+addStripe -nets {VDD VSS} -layer Metal8 -direction vertical -width 1.8 -spacing 0.45 -set_to_set_distance 28 -start_from left -start_offset 26 -switch_layer_over_obs false -max_same_layer_jog_length 2 -padcore_ring_top_layer_limit Metal11 -padcore_ring_bottom_layer_limit Metal1 -block_ring_top_layer_limit Metal11 -block_ring_bottom_layer_limit Metal1 -use_wire_group 0 -snap_wire_center_to_grid None
 
 # 2f) Pin placement
 setPinAssignMode -pinEditInBatch true
@@ -152,6 +152,9 @@ set_ccopt_property max_fanout 4
 set_ccopt_property target_max_trans 0.25
 set_ccopt_property buffer_cells {CLKBUFX2 CLKBUFX3 CLKBUFX4 CLKBUFX8 CLKBUFX12 CLKBUFX16}
 
+#add_ndr -width {Metal1 0.12 Metal2 0.16 Metal3 0.16 Metal4 0.16 Metal5 0.16 Metal6 0.16 Metal7 0.16 Metal8 0.16 Metal9 0.16 Metal10 0.44 Metal11 0.44 } -spacing {Metal1 0.12 Metal2 0.14 Metal3 0.14 Metal4 0.14 Metal5 0.14 Metal6 0.14 Metal7 0.14 Metal8 0.14 Metal9 0.14 Metal10 0.4 Metal11 0.4 } -name clock_ndr_2w2s
+
+#create_route_type -name CLKRouteType -top_preferred_layer Metal7 -bottom_preferred_layer Metal4 -non_default_rule clock_ndr_2w2s
 create_route_type -name CLKRouteType -top_preferred_layer Metal7 -bottom_preferred_layer Metal4 
 set_ccopt_property route_type CLKRouteType
 
@@ -219,6 +222,15 @@ ecoRoute
 verify_drc
 ecoRoute -fix_drc
 
+#Fix shorts
+verify_drc
+editDelete -regular_wire_with_drc
+ecoRoute
+
+
+return
+
+
 # This will show final timing
 timeDesign -reportOnly -postRoute -slackReports -numPaths 5 -prefix "${TOP_LEVEL}_final" -outDir reports
 report_timing -nworst 5 > ./reports/${TOP_LEVEL}_final.rpt
@@ -239,4 +251,10 @@ saveNetlist "$PNR_OUT_FOLDER/${TOP_LEVEL}_pnr.v" -excludeLeafCell
 
 timeDesign -postRoute -reportOnly
 write_sdf -max_view av_lsMax_rcWorst_cmFunc -typ_view av_lsMax_rcWorst_cmFunc -recompute_delay_calc -edges noedge -splitsetuphold -remashold -splitrecrem -min_period_edges both "$PNR_OUT_FOLDER/${TOP_LEVEL}_pnr.sdf"
+
+
+
+
+##################################################################################
+
 
