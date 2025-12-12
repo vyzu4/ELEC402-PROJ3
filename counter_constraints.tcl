@@ -27,8 +27,13 @@ if { $RUN_NAME == "v2_500" } {
 	set_load [expr [load_of [get_lib_pins */NAND2X4/A]] * 4] [all_outputs]
 	
 	#set input and output transitions
-	set_input_delay -clock CLK [expr $clk_period/4.0] $inputs_no_clk_rstn
-	set_output_delay -clock CLK [expr $clk_period/4.0] [all_outputs]
+	create_clock -name vclk_input -period $clk_period -waveform {0 1}
+	set_input_delay -clock vclk_input [expr $clk_period/4.0] $inputs_no_clk_rstn
+	#set_input_delay -clock vclk_input [expr $clk_period*3.0/4.0] $inputs_no_clk_rstn
+	create_clock -name vclk_output -period $clk_period -waveform {0 1}
+	set_output_delay -clock vclk_output [expr $clk_period/4.0] [all_outputs]
+	#set_output_delay -clock vclk_output [expr $clk_period*3.0/4.0] [all_outputs]
+
 
 	#set clock latency and uncertainties
 	set_clock_latency -early -late -source 0.250 [get_ports CLK]
