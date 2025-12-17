@@ -276,10 +276,9 @@ module mkMACBuff (
             VALID_memVal <= 1'b0;
             memVal_data  <= 34'h0;
         end else begin
-            VALID_memVal <= result_EN_readMem_int;
-            // VALID_memVal_reg2 <= VALID_memVal_reg;
+            VALID_memVal_reg <= result_EN_readMem_int;
+            VALID_memVal <= VALID_memVal_reg;
             // VALID_memVal <= VALID_memVal_reg2;
-
             // memVal_data_reg  <= readMem_val;
             memVal_data  <= readMem_val;
         end
