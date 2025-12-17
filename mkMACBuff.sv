@@ -54,8 +54,8 @@ module mkMACBuff (
     input  [33:0] readMem_val,    // Read data from memory
     
     // Memory value output interface
-    output VALID_memVal,          // Valid flag for output
-    output [33:0] memVal_data     // Memory output data
+    output logic VALID_memVal,          // Valid flag for output
+    output logic [33:0] memVal_data     // Memory output data
 );
 
     // N is determined by the required precision for dot product:
@@ -257,19 +257,36 @@ module mkMACBuff (
     logic VALID_memVal_reg2;
     logic [33:0] memVal_data_reg;
     
+    // always_ff @(posedge CLK or negedge RST_N) begin
+    //     if (!RST_N) begin
+    //         VALID_memVal_reg <= 1'b0;
+    //         memVal_data_reg  <= 34'h0;
+    //     end else begin
+    //         VALID_memVal_reg <= result_EN_readMem_int;
+    //         VALID_memVal_reg2 <= VALID_memVal_reg;
+    //         memVal_data_reg  <= readMem_val;
+    //     end
+    // end
+
+    // assign VALID_memVal = VALID_memVal_reg2;
+    // assign memVal_data = memVal_data_reg;
+
     always_ff @(posedge CLK or negedge RST_N) begin
         if (!RST_N) begin
-            VALID_memVal_reg <= 1'b0;
-            memVal_data_reg  <= 34'h0;
+            VALID_memVal <= 1'b0;
+            memVal_data  <= 34'h0;
         end else begin
-            VALID_memVal_reg <= result_EN_readMem_int;
-            VALID_memVal_reg2 <= VALID_memVal_reg;
-            memVal_data_reg  <= readMem_val;
+            VALID_memVal <= result_EN_readMem_int;
+            // VALID_memVal_reg2 <= VALID_memVal_reg;
+            // VALID_memVal <= VALID_memVal_reg2;
+
+            // memVal_data_reg  <= readMem_val;
+            memVal_data  <= readMem_val;
         end
     end
-    
-    assign VALID_memVal = VALID_memVal_reg2;
-    assign memVal_data = memVal_data_reg;
+
+    // assign VALID_memVal = VALID_memVal_reg2;
+    // assign memVal_data = memVal_data_reg;
     
     // ========================================================================
     // Input Pipeline Stage (for timing)
