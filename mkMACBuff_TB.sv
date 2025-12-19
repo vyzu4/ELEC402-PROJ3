@@ -219,14 +219,14 @@ begin
             end
             
             // Generate test vectors
-            test_vecA[0] = (i + 1 + k*64) & 16'hFFFF;
-            test_vecB[0] = (i + k + 1) & 16'hFFFF;
-            test_vecA[1] = (i + 2 + k*64) & 16'hFFFF;
-            test_vecB[1] = (i + k + 2) & 16'hFFFF;
-            test_vecA[2] = (i + 3 + k*64) & 16'hFFFF;
-            test_vecB[2] = (i + k + 3) & 16'hFFFF;
-            test_vecA[3] = (i + 4 + k*64) & 16'hFFFF;
-            test_vecB[3] = (i + k + 4) & 16'hFFFF;
+            test_vecA[0] = $urandom_range(65535, 0);
+            test_vecB[0] = $urandom_range(65535, 0);
+            test_vecA[1] = $urandom_range(65535, 0);
+            test_vecB[1] = $urandom_range(65535, 0);
+            test_vecA[2] = $urandom_range(65535, 0);
+            test_vecB[2] = $urandom_range(65535, 0);
+            test_vecA[3] = $urandom_range(65535, 0);
+            test_vecB[3] = $urandom_range(65535, 0);
             
             // Apply inputs at negative edge (setup before posedge)
             @(negedge CLK);
