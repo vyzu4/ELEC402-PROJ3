@@ -9,9 +9,7 @@
 
 `timescale 1ns / 1ps
 `define CLK_DELAY #2;
-`define HALF_CLK_DELAY #1;
-`define HALF_CLK_DELAY_MINUS_EDGE_GAP #0.9;
-`define EDGE_GAP #0.1;
+`define IN2REG_DELAY #0.5;
 
 module mkMACBuff_TB;
 
@@ -217,7 +215,12 @@ begin
             while (!RDY_mac) begin
                 @(posedge CLK);
             end
-            
+
+            @(posedge CLK);
+
+            `IN2REG_DELAY;
+            EN_mac = 1'b1;
+
             // Generate test vectors
             test_vecA[0] = $urandom_range(65535, 0);
             test_vecB[0] = $urandom_range(65535, 0);
@@ -228,8 +231,6 @@ begin
             test_vecA[3] = $urandom_range(65535, 0);
             test_vecB[3] = $urandom_range(65535, 0);
             
-            // Apply inputs at negative edge (setup before posedge)
-            @(negedge CLK);
             mac_vectA_0 = test_vecA[0];
             mac_vectB_0 = test_vecB[0];
             mac_vectA_1 = test_vecA[1];
@@ -245,21 +246,13 @@ begin
                 test_vecB[0], test_vecB[1], test_vecB[2], test_vecB[3]
             );
             
-            // Enable MAC
-            EN_mac = 1'b1;
-            
-            if (i % 16 == 0) begin
-                $display("[%0t] Dot product %0d:", $time, i);
-                $display("        A=[%0d, %0d, %0d, %0d]", 
-                         test_vecA[0], test_vecA[1], test_vecA[2], test_vecA[3]);
-                $display("        B=[%0d, %0d, %0d, %0d]", 
-                         test_vecB[0], test_vecB[1], test_vecB[2], test_vecB[3]);
-                $display("        Expected result = %0d", expMACBuff[i]);
-            end
-            
-            @(posedge CLK);
-            #0.1;  // Small delay after clock edge
-            // EN_mac = 1'b0;
+            // messages
+            $display("[%0t] Dot product %0d:", $time, i);
+            $display("        A=[%0d, %0d, %0d, %0d]", 
+                        test_vecA[0], test_vecA[1], test_vecA[2], test_vecA[3]);
+            $display("        B=[%0d, %0d, %0d, %0d]", 
+                        test_vecB[0], test_vecB[1], test_vecB[2], test_vecB[3]);
+            $display("        Expected result = %0d", expMACBuff[i]);
         end
         
         $display("[%0t] All 64 dot products submitted", $time);
@@ -269,11 +262,7 @@ begin
         end
 
         @(posedge CLK);
-
         EN_mac = 1'b0;
-        
-        // // Wait for pipeline to complete and memory to fill
-        // repeat(20) @(posedge CLK);
         
         // Wait until not ready (memory full)
         while (RDY_mac) begin
@@ -295,10 +284,11 @@ begin
         $display("[%0t] Phase 2: Reading back results...", $time);
         
         // Start read operation at negative edge
-        @(negedge CLK);
+        @(posedge CLK);
+        `IN2REG_DELAY;
         EN_blockRead = 1'b1;
         @(posedge CLK);
-        #0.1;
+        `IN2REG_DELAY;
         EN_blockRead = 1'b0;
         
         // Wait for first valid data
@@ -318,7 +308,7 @@ begin
                          $time, j, expMACBuff[j], memVal_data);
                 error_count = error_count + 1;
             end else if (j % 16 == 0) begin
-                $display("[%0t] Result %0d: %0d ✓", $time, j, memVal_data);
+                $display("[%0t] Result %0d: %0d :)", $time, j, memVal_data);
             end
             
             @(posedge CLK);
@@ -339,9 +329,9 @@ begin
     $display("Total tests: %0d", total_tests);
     $display("Errors:      %0d", error_count);
     if (error_count == 0) begin
-        $display("STATUS:      PASS ✓");
+        $display("STATUS:      PASS :)");
     end else begin
-        $display("STATUS:      FAIL ✗");
+        $display("STATUS:      FAIL :(");
     end
     $display("========================================\n");
 end
