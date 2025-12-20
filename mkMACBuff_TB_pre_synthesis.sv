@@ -1,12 +1,3 @@
-// ============================================================================
-// Testbench for dnn_accelerator (Project 3)
-// ============================================================================
-// This testbench verifies the DNN accelerator which uses 4 instances of
-// multiplier_800M_16b.
-//
-// Pipeline: 1 (input reg) + 4 (multiplier_800M_16b) + 1 (adder tree) = 6 cycles total latency
-// ============================================================================
-
 `timescale 1ns / 1ps
 `define CLK_DELAY #2;
 `define IN2REG_DELAY #0.5;
