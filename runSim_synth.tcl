@@ -4,7 +4,9 @@ set TB_NAME ${TOP_LEVEL}_TB
 set SDF_FOLDER "/ubc/ece/home/ugrads/v/vzhu03/ELEC402/synthesis/outputs"
 
 # Starting the simulator
-vsim -default_radix unsigned -voptargs=+acc -sdfnoerror -sdfmax /$TB_NAME/${TOP_LEVEL}_DUT=$SDF_FOLDER/${TOP_LEVEL}_v2_500_map.sdf -l $TB_NAME.sim.log work.${TB_NAME} -vopt
+# vsim -default_radix unsigned -voptargs=+acc -sdfnoerror -sdfmax /$TB_NAME/${TOP_LEVEL}_DUT=$SDF_FOLDER/${TOP_LEVEL}_v2_500_map.sdf -l $TB_NAME.sim.log work.${TB_NAME} -vopt
+vsim -default_radix unsigned -voptargs=+acc -sdfnoerror -sdfmax /$TB_NAME/${TOP_LEVEL}_DUT=/ubc/ece/home/ugrads/v/vzhu03/ELEC402/pnr/output/mkMACBuff_pnr.sdf -l $TB_NAME.sim.log work.${TB_NAME} -vopt
+
 
 # Open the vcd file to write the waveforms to
 vcd file ${TOP_LEVEL}.vcd
