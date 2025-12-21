@@ -92,7 +92,7 @@ editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Right -layer 
 
 editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 2.0 -end 0 32.0 -pin {VALID_memVal memVal_data*}
 
-editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 34.0 -end 0 36.0 -pin {CLK rst_n}
+editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 34.0 -end 0 36.0 -pin {CLK RST_N}
 
 editPin -snap MGRID -fixOverlap 1 -spreadDirection clockwise -side Left -layer 3 -spreadType range -start 0 38.0 -end 0 40.0 -pin {EN_blockRead RDY_blockRead}
 
@@ -152,9 +152,6 @@ set_ccopt_property max_fanout 4
 set_ccopt_property target_max_trans 0.25
 set_ccopt_property buffer_cells {CLKBUFX2 CLKBUFX3 CLKBUFX4 CLKBUFX8 CLKBUFX12 CLKBUFX16}
 
-#add_ndr -width {Metal1 0.12 Metal2 0.16 Metal3 0.16 Metal4 0.16 Metal5 0.16 Metal6 0.16 Metal7 0.16 Metal8 0.16 Metal9 0.16 Metal10 0.44 Metal11 0.44 } -spacing {Metal1 0.12 Metal2 0.14 Metal3 0.14 Metal4 0.14 Metal5 0.14 Metal6 0.14 Metal7 0.14 Metal8 0.14 Metal9 0.14 Metal10 0.4 Metal11 0.4 } -name clock_ndr_2w2s
-
-#create_route_type -name CLKRouteType -top_preferred_layer Metal7 -bottom_preferred_layer Metal4 -non_default_rule clock_ndr_2w2s
 create_route_type -name CLKRouteType -top_preferred_layer Metal7 -bottom_preferred_layer Metal4 
 set_ccopt_property route_type CLKRouteType
 
@@ -204,7 +201,7 @@ report_timing -nworst 5 > ./reports/${TOP_LEVEL}_postRoute.rpt
 # Saving design after routing
 saveDesign chkpts/${TOP_LEVEL}_postRoute
 
-return
+# return
 #################################################################################
 # 6) Fixing DRCs
 
@@ -222,13 +219,13 @@ ecoRoute
 verify_drc
 ecoRoute -fix_drc
 
-#Fix shorts
-verify_drc
-editDelete -regular_wire_with_drc
-ecoRoute
+# #Fix shorts interactively
+# verify_drc
+# editDelete -regular_wire_with_drc
+# ecoRoute
 
 
-return
+# return
 
 
 # This will show final timing
@@ -251,10 +248,3 @@ saveNetlist "$PNR_OUT_FOLDER/${TOP_LEVEL}_pnr.v" -excludeLeafCell
 
 timeDesign -postRoute -reportOnly
 write_sdf -max_view av_lsMax_rcWorst_cmFunc -typ_view av_lsMax_rcWorst_cmFunc -recompute_delay_calc -edges noedge -splitsetuphold -remashold -splitrecrem -min_period_edges both "$PNR_OUT_FOLDER/${TOP_LEVEL}_pnr.sdf"
-
-
-
-
-##################################################################################
-
-
