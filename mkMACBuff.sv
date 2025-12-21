@@ -2,6 +2,7 @@ module mkMACBuff (
     input  CLK, 
     input  RST_N,
 
+    // MAC request (dot-product) handshake + inputs
     input  EN_mac,
     output RDY_mac,
     input  [15:0] mac_vectA_0,
@@ -13,23 +14,28 @@ module mkMACBuff (
     input  [15:0] mac_vectA_3,
     input  [15:0] mac_vectB_3,
 
+    // Result memory write port
     output EN_writeMem,
     output [5:0] writeMem_addr,
     output [33:0] writeMem_val,
 
+    // Block read control handshake
     input  EN_blockRead,
     output RDY_blockRead,
 
+    // Result memory read port
     output EN_readMem,
     output [5:0] readMem_addr,
     input  [33:0] readMem_val,
 
+    // Read-out stream (valid + data)
     output VALID_memVal,
     output [33:0] memVal_data
 );
 
     localparam N = 33;
 
+    // 4 parallel pipelined multipliers (16x16 -> 32-bit product)
     logic        mult0_VALID_output;
     logic [31:0] mult0_output_val;
     logic        mult0_stage1_occupied, mult0_stage2_occupied, mult0_stage3_occupied;
@@ -48,6 +54,7 @@ module mkMACBuff (
 
     logic        result_EN_readMem_int;
 
+    // Adder-tree pipeline: capture products -> pairwise sums -> final sum
     logic [31:0] stage1_prod0, stage1_prod1, stage1_prod2, stage1_prod3;
     logic        stage1_valid;
 
@@ -107,6 +114,7 @@ module mkMACBuff (
         end
     end
 
+    // Result buffer addressing (write 0..63, then read 0..63)
     logic [6:0]  result_write_count;
     logic [5:0]  result_read_count;
 
@@ -127,6 +135,7 @@ module mkMACBuff (
         end
     end
 
+    // FSM: accept MACs -> fill buffer -> block read -> return to IDLE
     always_comb begin
         next_state = current_state;
 
@@ -139,6 +148,7 @@ module mkMACBuff (
         endcase
     end
 
+    // Write address increments on each valid dot-product result
     always_ff @(posedge CLK or negedge RST_N) begin
         if (!RST_N) begin
             result_write_count <= 7'd0;
@@ -150,6 +160,7 @@ module mkMACBuff (
         end
     end
 
+    // Read address increments once per cycle while in READING
     always_ff @(posedge CLK or negedge RST_N) begin
         if (!RST_N) begin
             result_read_count <= 6'd0;
@@ -161,18 +172,22 @@ module mkMACBuff (
         end
     end
 
+    // Ready/handshake outputs
     assign RDY_mac = (current_state == IDLE || current_state == WRITING) &&
                      (result_write_count < 7'd57);
     assign RDY_blockRead = (current_state == FULL);
 
+    // Memory write when final sum is valid and we're filling the buffer
     assign EN_writeMem   = stage3_valid && (current_state == WRITING);
     assign writeMem_addr = result_write_count[5:0];
     assign writeMem_val  = stage3_result;
 
+    // Memory read enable/address during block readout
     assign result_EN_readMem_int = (current_state == READING);
     assign EN_readMem   = result_EN_readMem_int;
     assign readMem_addr = result_read_count;
 
+    // Output register stage for VALID/data alignment
     logic VALID_memVal_reg;
     logic VALID_memVal_reg2;
     logic [33:0] memVal_data_reg;
@@ -192,6 +207,7 @@ module mkMACBuff (
     assign VALID_memVal = VALID_memVal_reg2;
     assign memVal_data  = memVal_data_reg;
 
+    // Input register stage (captures vectors when EN_mac is asserted)
     logic [15:0] mac_vectA_0_reg, mac_vectB_0_reg;
     logic [15:0] mac_vectA_1_reg, mac_vectB_1_reg;
     logic [15:0] mac_vectA_2_reg, mac_vectB_2_reg;
@@ -226,6 +242,7 @@ module mkMACBuff (
         end
     end
 
+    // 4 multipliers run in parallel; VALID_output indicates product availability
     multiplier_800M_16b mult_inst_0 (
         .CLK(CLK),
         .RST_N(RST_N),
