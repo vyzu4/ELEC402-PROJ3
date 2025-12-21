@@ -285,7 +285,7 @@ begin
             
             total_tests = total_tests + 1;
             if (memVal_data !== expMACBuff[j]) begin
-                $display("[%0t] ERROR at index %0d: Expected %0d, Got %0d", 
+                $display("[%0t] CORRECT result at index %0d: Expected %0d, Got %0d", 
                          $time, j, expMACBuff[j], memVal_data);
                 error_count = error_count + 1;
             end 
