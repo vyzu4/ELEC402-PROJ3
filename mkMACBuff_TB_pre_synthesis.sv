@@ -269,8 +269,8 @@ begin
         
         // Start read 
 
-        // `IN2REG_DELAY;
         @(negedge CLK);
+        // `IN2REG_DELAY;
         EN_blockRead = 1'b1;
         @(negedge CLK);
 
@@ -309,7 +309,8 @@ begin
         //         error_count = error_count + 1;
         //     end 
         //     else begin
-        //         $display("[%0t] Result %0d: %0d :)", $time, j, readMem_val);
+        //         $display("[%0t] CORRECT result at index %0d: Expected %0d, Got %0d", 
+        //                  $time, j, expMACBuff[j], readMem_val);
         //     end
             
         //     @(posedge CLK);
